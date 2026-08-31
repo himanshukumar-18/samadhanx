@@ -1,9 +1,10 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.endpoints import health
 from app.api.v1.router import api_router
@@ -11,6 +12,7 @@ from app.core.config import settings
 from app.core.exceptions import (
     AppException,
     app_exception_handler,
+    http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
@@ -24,7 +26,6 @@ from app.middlewares.security import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Lifespan context manager for application startup and graceful shutdown."""
     setup_logging(
         log_level=settings.LOG_LEVEL,
         is_production=(settings.ENVIRONMENT == "production"),
@@ -32,12 +33,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(
         f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT.upper()}]"
     )
+
+    # Initialize database tables if they do not exist
+    try:
+        from app.db.session import async_engine
+        from app.models import Base
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables verified and initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Database auto-creation check note: {e}")
+
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
-
 def create_app() -> FastAPI:
-    """FastAPI Application Factory."""
     application = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
@@ -50,12 +60,12 @@ def create_app() -> FastAPI:
 
     # 1. Register Custom Exception Handlers
     application.add_exception_handler(AppException, app_exception_handler)
-    application.add_exception_handler(
-        RequestValidationError, validation_exception_handler
-    )
+    application.add_exception_handler(HTTPException, http_exception_handler)
+    application.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    application.add_exception_handler(RequestValidationError, validation_exception_handler)
     application.add_exception_handler(Exception, unhandled_exception_handler)
 
-    # 2. Register Middlewares (Order: correlation -> size limit -> security -> CORS)
+    # 2. Register Middlewares
     application.add_middleware(CorrelationIdMiddleware)
     application.add_middleware(
         RequestSizeLimitMiddleware, max_bytes=settings.MAX_REQUEST_SIZE_BYTES
@@ -78,6 +88,5 @@ def create_app() -> FastAPI:
     application.include_router(api_router, prefix=settings.API_V1_STR)
 
     return application
-
 
 app = create_app()

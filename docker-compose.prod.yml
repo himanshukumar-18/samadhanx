@@ -56,7 +56,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen("http://localhost:8000/health/live")'"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/live || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -99,7 +99,7 @@ services:
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

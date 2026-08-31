@@ -1,16 +1,22 @@
-from sqlalchemy import Column, String
+import pytest
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
-
-
-class MockItem(Base):
-    name = Column(String(50), nullable=False)
+from app.models.base import BaseModel
 
 
-def test_base_model_attributes() -> None:
-    item = MockItem(name="Test Item")
-    assert hasattr(item, "id")
-    assert hasattr(item, "created_at")
-    assert hasattr(item, "updated_at")
-    assert hasattr(item, "is_deleted")
-    assert MockItem.__tablename__ == "mock_items"
+class MockItem(BaseModel):
+    __tablename__ = "mock_items"
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+
+@pytest.mark.asyncio
+async def test_base_model_uuid_and_timestamps(db_session):
+    item = MockItem(name="Test Unit")
+    db_session.add(item)
+    await db_session.commit()
+    await db_session.refresh(item)
+
+    assert item.id is not None
+    assert item.created_at is not None
+    assert item.updated_at is not None
+    assert item.name == "Test Unit"

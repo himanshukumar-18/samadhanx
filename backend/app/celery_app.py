@@ -6,7 +6,11 @@ celery_app = Celery(
     "samadhanx",
     broker=settings.celery_broker,
     backend=settings.celery_backend,
-    include=["app.tasks.health"],
+    include=[
+        "app.tasks.email",
+        "app.tasks.health",
+        "app.tasks.test_tasks",
+    ],
 )
 
 celery_app.conf.update(

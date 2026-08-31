@@ -1,15 +1,14 @@
 from typing import Any
 
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging import correlation_id_ctx, logger
 
 
 class AppException(Exception):
-    """Base exception for all application errors."""
-
     def __init__(
         self,
         message: str,
@@ -23,60 +22,48 @@ class AppException(Exception):
         self.status_code = status_code
         self.details = details
 
-
 class NotFoundError(AppException):
-    def __init__(
-        self, message: str = "Resource not found", details: Any = None
-    ) -> None:
-        super().__init__(
-            message=message,
-            code="NOT_FOUND",
-            status_code=status.HTTP_404_NOT_FOUND,
-            details=details,
-        )
-
+    def __init__(self, message: str = "Resource not found", details: Any = None) -> None:
+        super().__init__(message=message, code="NOT_FOUND", status_code=status.HTTP_404_NOT_FOUND, details=details)
 
 class ValidationError(AppException):
     def __init__(self, message: str = "Validation failed", details: Any = None) -> None:
-        super().__init__(
-            message=message,
-            code="VALIDATION_ERROR",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            details=details,
-        )
-
+        super().__init__(message=message, code="VALIDATION_ERROR", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, details=details)
 
 class DatabaseError(AppException):
-    def __init__(
-        self, message: str = "Database operation failed", details: Any = None
-    ) -> None:
-        super().__init__(
-            message=message,
-            code="DATABASE_ERROR",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details=details,
-        )
-
+    def __init__(self, message: str = "Database operation failed", details: Any = None) -> None:
+        super().__init__(message=message, code="DATABASE_ERROR", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
 
 class ServiceUnavailableError(AppException):
-    def __init__(
-        self, message: str = "External service unavailable", details: Any = None
-    ) -> None:
-        super().__init__(
-            message=message,
-            code="SERVICE_UNAVAILABLE",
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            details=details,
-        )
+    def __init__(self, message: str = "External service unavailable", details: Any = None) -> None:
+        super().__init__(message=message, code="SERVICE_UNAVAILABLE", status_code=status.HTTP_503_SERVICE_UNAVAILABLE, details=details)
 
+async def http_exception_handler(request: Request, exc: HTTPException | StarletteHTTPException) -> JSONResponse:
+    req_id = correlation_id_ctx.get() or request.headers.get("X-Request-ID", "unknown")
+    code = "HTTP_ERROR"
+    message = str(exc.detail)
+    details = None
+
+    if isinstance(exc.detail, dict):
+        code = exc.detail.get("code", "HTTP_ERROR")
+        message = exc.detail.get("message", str(exc.detail))
+        details = exc.detail.get("details")
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": {
+                "code": code,
+                "message": message,
+                "request_id": req_id,
+                "details": details,
+            },
+        },
+    )
 
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    """Centralized handler for custom application exceptions."""
     req_id = correlation_id_ctx.get() or request.headers.get("X-Request-ID", "unknown")
-    logger.warning(
-        f"Application exception: {exc.code} - {exc.message}",
-        extra={"extra_data": {"code": exc.code, "status_code": exc.status_code}},
-    )
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -90,11 +77,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         },
     )
 
-
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    """Handler for FastAPI/Pydantic request validation errors."""
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     req_id = correlation_id_ctx.get() or request.headers.get("X-Request-ID", "unknown")
     details = []
     for err in exc.errors():
@@ -114,12 +97,9 @@ async def validation_exception_handler(
         },
     )
 
-
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Fallback handler for uncaught exceptions, preventing stack trace leaks."""
     req_id = correlation_id_ctx.get() or request.headers.get("X-Request-ID", "unknown")
     logger.exception(f"Unhandled server error occurred: {exc!s}")
-
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
