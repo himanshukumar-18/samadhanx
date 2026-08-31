@@ -1,18 +1,5 @@
-from celery import Celery
+"""Celery application alias."""
 
-from app.core.config import settings
+from app.celery_app import celery_app
 
-
-celery_app = Celery(
-    "samadhanx",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
-)
-
-celery_app.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="UTC",
-    enable_utc=True,
-)
+__all__ = ["celery_app"]

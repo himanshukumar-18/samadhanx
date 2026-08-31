@@ -1,0 +1,125 @@
+# ==============================================================================
+# SamadhanX Master .gitignore
+# SIH 2026 - Problem Statement: SIH 26043
+# ==============================================================================
+
+# --- Environment & Secret Files ---
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+
+# --- Python & Virtual Environments ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.*.py[cod]
+*$py.class
+*.so
+.Python
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+**/.venv/
+env/
+**/env/
+venv/
+**/venv/
+ENV/
+**/ENV/
+env.bak/
+venv.bak/
+
+# --- Testing & Quality Tools ---
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+**/.coverage
+.coverage.*
+htmlcov/
+**/htmlcov/
+.tox/
+.nox/
+.hypothesis/
+coverage.xml
+*.cover
+*.py,cover
+.ruff_cache/
+**/.ruff_cache/
+.mypy_cache/
+**/.mypy_cache/
+.pyre/
+.pytype/
+
+# --- Node & Frontend ---
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+*.local
+frontend/*.local
+
+# --- Celery & Background Workers ---
+celerybeat-schedule
+celerybeat.pid
+celerybeat-schedule.*
+
+# --- Application Logs ---
+logs/
+**/logs/
+*.log
+
+# --- Local Databases & Volumes ---
+postgres_data/
+**/postgres_data/
+redis_data/
+**/redis_data/
+*.sqlite3
+*.db
+
+# --- OS & IDE Metadata ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.swp
+*.swo
+*~

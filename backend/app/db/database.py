@@ -1,32 +1,9 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+"""Database session alias for backward compatibility."""
 
-from app.core.config import settings
+from app.db.base import Base
+from app.db.session import SyncSessionLocal, async_engine, get_db, sync_engine
 
+engine = sync_engine
+SessionLocal = SyncSessionLocal
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
-
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-)
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-def get_db():
-    db = SessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
+__all__ = ["engine", "SessionLocal", "Base", "get_db", "async_engine", "sync_engine"]

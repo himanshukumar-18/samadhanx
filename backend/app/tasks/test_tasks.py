@@ -1,6 +1,5 @@
-from app.tasks.celery_app import celery_app
+"""Test tasks alias."""
 
+from app.tasks.health import ping_task as test_task
 
-@celery_app.task
-def test_task():
-    return "SamadhanX Celery is working!"
+__all__ = ["test_task"]
