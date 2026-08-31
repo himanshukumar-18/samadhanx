@@ -1,15 +1,15 @@
 import React from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Sparkles, Users, Compass } from 'lucide-react';
+import { Users, Compass, Layers } from 'lucide-react';
 
 export const RightSidebar: React.FC = () => {
   return (
-    <aside className="w-full space-y-4 py-2 px-1">
+    <aside className="w-full space-y-4 py-2 px-1 select-none">
       {/* 1. Community Mission Card */}
-      <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-2.5">
+      <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-2.5">
         <div className="flex items-center gap-1.5 text-primary text-xs font-black">
-          <Sparkles className="w-4 h-4 text-primary" /> SamadhanX Network
+          <Layers className="w-4 h-4 text-primary" /> SamadhanX Network
         </div>
         <p className="text-sm text-foreground font-bold leading-snug">
           Real Problems. Right People. Real Solutions.
@@ -17,7 +17,7 @@ export const RightSidebar: React.FC = () => {
         <p className="text-xs text-muted-foreground leading-relaxed">
           Connect with innovators, faculty mentors, and community leaders to turn societal challenges into scalable solutions.
         </p>
-        <Button variant="primary" size="sm" className="w-full text-xs h-9 rounded-xl font-bold mt-1" onClick={() => (window.location.href = '/explore')}>
+        <Button variant="primary" size="sm" className="w-full text-xs min-h-[38px] rounded-xl font-bold mt-1" onClick={() => (window.location.href = '/explore')}>
           Explore Challenges
         </Button>
       </div>

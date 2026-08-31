@@ -9,21 +9,21 @@ export const FacultyDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white">Faculty Academic Mentorship Portal</h1>
+            <h1 className="text-2xl font-black text-foreground">Faculty Academic Mentorship Portal</h1>
             <Badge variant="faculty">Faculty Mentor</Badge>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Welcome, <strong>{user?.full_name || user?.email}</strong> {user?.organization_name && `• ${user.organization_name}`}
+          <p className="text-sm text-muted-foreground">
+            Welcome, <strong className="text-foreground">{user?.full_name || user?.email}</strong> {user?.organization_name && `• ${user.organization_name}`}
           </p>
         </div>
       </div>
-      <Card className="text-center py-12">
+      <Card className="text-center py-12 border-border">
         <GraduationCap className="w-12 h-12 text-purple-500 mx-auto mb-3" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Mentorship Desk Active</h3>
-        <p className="text-sm text-slate-500">Student teams from your university will submit innovation proposals for your review and guidance.</p>
+        <h3 className="text-lg font-bold text-foreground">Mentorship Desk Active</h3>
+        <p className="text-sm text-muted-foreground">Student teams from your university will submit innovation proposals for your review and guidance.</p>
       </Card>
     </div>
   );

@@ -29,13 +29,13 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-4 sm:space-y-5 min-w-0 w-full">
       {/* 1. Feed Tabs */}
-      <div className="flex items-center justify-between border-b border-border bg-card/60 backdrop-blur-sm p-1.5 rounded-2xl">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full">
+      <div className="border-b border-border bg-card/80 backdrop-blur-sm p-1.5 rounded-2xl w-full max-w-full min-w-0 overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full min-w-0">
           <button
             onClick={() => setActiveTab('for_you')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] flex-shrink-0 ${
               activeTab === 'for_you'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -45,7 +45,7 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
           </button>
           <button
             onClick={() => setActiveTab('trending')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] flex-shrink-0 ${
               activeTab === 'trending'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -55,7 +55,7 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
           </button>
           <button
             onClick={() => setActiveTab('nearby')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] flex-shrink-0 ${
               activeTab === 'nearby'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -65,7 +65,7 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
           </button>
           <button
             onClick={() => setActiveTab('latest')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all min-h-[40px] flex-shrink-0 ${
               activeTab === 'latest'
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -76,28 +76,30 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
         </div>
       </div>
 
-      {/* 2. Horizontal Sector Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-sm">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all min-h-[38px] flex items-center ${
-              selectedCategory === cat
-                ? 'bg-primary/15 text-primary border border-primary/30 font-bold'
-                : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border/80'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* 2. Horizontal Sector Filter Pills (Constrained to container) */}
+      <div className="w-full max-w-full min-w-0 overflow-x-auto pb-1 no-scrollbar text-sm">
+        <div className="flex items-center gap-2 min-w-max">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all min-h-[38px] flex items-center flex-shrink-0 ${
+                selectedCategory === cat
+                  ? 'bg-primary/15 text-primary border border-primary/30 font-bold'
+                  : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 3. Inline Problem Creator Card */}
       <CreateProblemCard onCreated={handleNewProblem} />
 
       {/* 4. Stream of Problem Posts or Meaningful Empty State */}
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-4 sm:space-y-5 w-full">
         {filteredProblems.length > 0 ? (
           filteredProblems.map((problem) => (
             <ProblemPost key={problem.id} problem={problem} />

@@ -70,12 +70,12 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
   const config = getRoleConfig(activeRole);
 
   return (
-    <aside className="w-full h-full flex flex-col justify-between py-2 px-1 space-y-4">
+    <aside className="w-full h-full flex flex-col justify-between py-2 px-1 space-y-4 select-none">
       <div className="space-y-3.5">
-        {/* Real Workspace Card */}
-        <div className="p-3.5 bg-muted/60 rounded-2xl border border-border flex items-center justify-between gap-2">
+        {/* Workspace Card */}
+        <div className="p-3.5 bg-card rounded-2xl border border-border flex items-center justify-between gap-2 shadow-2xs">
           <div className="flex flex-col min-w-0">
-            <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider truncate">Workspace</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider truncate">Workspace</span>
             <span className="text-sm font-black text-foreground truncate">{config.displayName}</span>
           </div>
           <Badge variant="student" className="text-[10px] px-2 py-0.5 uppercase tracking-wider flex-shrink-0">
@@ -87,7 +87,7 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
         <Button
           variant="primary"
           size="sm"
-          className="w-full h-11 rounded-xl shadow-md shadow-primary/20 text-sm font-bold"
+          className="w-full h-11 rounded-xl text-sm font-bold shadow-xs"
           onClick={() => {
             window.location.href = config.primaryActionPath;
             if (onItemClick) onItemClick();
@@ -133,10 +133,10 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
         </nav>
       </div>
 
-      {/* Clean Production Product Footer */}
+      {/* Production Product Footer */}
       <div className="pt-3 border-t border-border text-xs text-muted-foreground text-center space-y-0.5">
-        <p className="font-semibold text-foreground">SamadhanX</p>
-        <p className="text-[11px] text-muted-foreground">© 2026 SamadhanX</p>
+        <p className="font-bold text-foreground">SamadhanX</p>
+        <p className="text-[11px] text-muted-foreground">© 2026 SamadhanX. All rights reserved.</p>
       </div>
     </aside>
   );

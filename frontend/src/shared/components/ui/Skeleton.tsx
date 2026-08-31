@@ -8,7 +8,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className, ...props }) => {
   return (
     <div
       className={twMerge(
-        clsx('animate-pulse rounded-md bg-slate-200 dark:bg-slate-800', className)
+        clsx('animate-pulse rounded-xl bg-muted', className)
       )}
       {...props}
     />

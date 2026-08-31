@@ -47,14 +47,14 @@ export const MobileBottomNav: React.FC = () => {
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 border-t border-border backdrop-blur-lg px-3 py-1 h-16 flex items-center justify-around shadow-lg">
       {config.mobileBottomNav.map((item) => {
         const Icon = ICON_MAP[item.iconName] || Home;
-        const isActive = currentPath === item.path;
+        const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
 
         if (item.highlight) {
           return (
             <a
               key={item.id}
               href={item.path}
-              className="flex flex-col items-center justify-center -mt-6 group min-w-[56px] min-h-[56px]"
+              className="flex flex-col items-center justify-center -mt-6 group min-w-[56px] min-h-[56px] focus:outline-none"
               aria-label={item.label}
             >
               <div className="w-13 h-13 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/35 border-4 border-card group-hover:scale-105 transition-transform">
@@ -69,7 +69,7 @@ export const MobileBottomNav: React.FC = () => {
           <a
             key={item.id}
             href={item.path}
-            className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] rounded-xl transition-colors ${
+            className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] rounded-xl transition-colors focus:outline-none ${
               isActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
             }`}
           >

@@ -18,11 +18,11 @@ export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initial
   });
 
   return (
-    <div className="space-y-4 pb-12">
-      <div className="p-4 sm:p-5 bg-card rounded-2xl border border-border space-y-3.5">
+    <div className="space-y-4 pb-12 w-full min-w-0">
+      <div className="p-4 sm:p-5 bg-card rounded-2xl border border-border space-y-3.5 w-full">
         <div className="flex items-center justify-between">
           <h1 className="text-base sm:text-lg font-black text-foreground">Explore Societal Challenges</h1>
-          <span className="text-xs text-primary font-semibold flex items-center gap-1">
+          <span className="text-xs text-primary font-bold flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5" /> Discovery
           </span>
         </div>
@@ -34,28 +34,30 @@ export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initial
             placeholder="Search problems by keyword, district, or university..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-muted/60 focus:bg-background rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground border border-border focus:border-primary focus:outline-none"
+            className="w-full bg-muted/70 hover:bg-muted focus:bg-card rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all h-11"
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-sm">
-          {sectors.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSelectedSector(s)}
-              className={`px-3.5 py-1.5 rounded-full whitespace-nowrap font-medium transition-all min-h-[36px] ${
-                selectedSector === s
-                  ? 'bg-primary text-primary-foreground font-bold'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+        <div className="w-full max-w-full min-w-0 overflow-x-auto no-scrollbar text-sm">
+          <div className="flex items-center gap-2 min-w-max">
+            {sectors.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedSector(s)}
+                className={`px-3.5 py-1.5 rounded-full whitespace-nowrap font-medium transition-all min-h-[36px] flex-shrink-0 ${
+                  selectedSector === s
+                    ? 'bg-primary text-primary-foreground font-bold'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         {filtered.length > 0 ? (
           filtered.map((p) => (
             <ProblemPost key={p.id} problem={p} />

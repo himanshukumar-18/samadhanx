@@ -4,13 +4,13 @@ import { Sparkles, Users, Cpu, ArrowRight } from 'lucide-react';
 
 export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> = ({ insight, problemId }) => {
   return (
-    <div className="my-3 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-indigo-50/30 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-indigo-950/20 border border-primary/25 space-y-2.5">
+    <div className="my-3 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-black text-primary">
-          <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
           <span>AI Problem Match & Skill Breakdown</span>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">
           {(insight.confidenceScore * 100).toFixed(0)}% Match
         </span>
       </div>
@@ -28,7 +28,7 @@ export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> 
           {insight.requiredSkills.map((skill, idx) => (
             <span
               key={idx}
-              className="text-[11px] font-semibold bg-background px-2.5 py-0.5 rounded-md border border-border text-foreground shadow-2xs"
+              className="text-[11px] font-semibold bg-card px-2.5 py-0.5 rounded-md border border-border text-foreground shadow-2xs"
             >
               {skill}
             </span>

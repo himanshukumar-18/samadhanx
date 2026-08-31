@@ -4,7 +4,8 @@ import { apiClient } from '../../../lib/apiClient';
 import { Button } from '../../../shared/components/ui/Button';
 import { Input } from '../../../shared/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
-import { Mail, Lock, LogIn, AlertCircle, ArrowRight } from 'lucide-react';
+import { Logo } from '../../../shared/components/Logo';
+import { Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const LoginPage: React.FC = () => {
@@ -57,9 +58,10 @@ export const LoginPage: React.FC = () => {
           default: window.location.href = '/';
         }
       }
-    } catch (err: any) {
-      const errCode = err.response?.data?.error?.code;
-      const message = err.response?.data?.error?.message || 'Login failed. Please check your credentials.';
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
+      const errCode = errorObj.response?.data?.error?.code;
+      const message = errorObj.response?.data?.error?.message || 'Login failed. Please check your credentials.';
 
       if (errCode === 'EMAIL_NOT_VERIFIED') {
         setErrorMsg('Your email is not verified. Please enter the OTP to continue.');
@@ -69,8 +71,6 @@ export const LoginPage: React.FC = () => {
         }, 1500);
       } else if (errCode === 'ACCOUNT_PENDING_APPROVAL') {
         setErrorMsg('Your institutional account is pending administrative approval by the national governance desk.');
-      } else if (errCode === 'ACCOUNT_REJECTED') {
-        setErrorMsg(message);
       } else {
         setErrorMsg(message);
       }
@@ -80,19 +80,22 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-lg border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-center">
+          <a href="/">
+            <Logo size="lg" />
+          </a>
+        </div>
+
+        <Card className="shadow-lg border-border">
           <CardHeader className="text-center">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/20">
-              <LogIn className="w-6 h-6" />
-            </div>
-            <CardTitle className="text-2xl">Welcome Back</CardTitle>
+            <CardTitle className="text-2xl font-black">Welcome Back</CardTitle>
             <CardDescription>Sign in to access your SamadhanX role workspace</CardDescription>
           </CardHeader>
 
           {errorMsg && (
-            <div className="mb-5 p-3.5 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-start gap-2.5">
+            <div className="mb-5 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2.5 font-medium">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <div>{errorMsg}</div>
             </div>
@@ -119,15 +122,15 @@ export const LoginPage: React.FC = () => {
             />
 
             <div className="flex items-center justify-between text-xs pt-1">
-              <a href="/register" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+              <a href="/register" className="text-primary hover:underline font-semibold">
                 Need an account? Sign up
               </a>
-              <a href="/request-access" className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
-                Institutional Request →
+              <a href="/request-access" className="text-muted-foreground hover:text-foreground font-medium">
+                Institutional Access Request →
               </a>
             </div>
 
-            <Button type="submit" className="w-full mt-2" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
+            <Button type="submit" className="w-full mt-2 font-bold" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
               Sign In
             </Button>
           </form>

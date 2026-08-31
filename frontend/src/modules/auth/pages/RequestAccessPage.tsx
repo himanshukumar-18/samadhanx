@@ -3,6 +3,7 @@ import { apiClient } from '../../../lib/apiClient';
 import { Button } from '../../../shared/components/ui/Button';
 import { Input } from '../../../shared/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
+import { Logo } from '../../../shared/components/Logo';
 import { Building2, Landmark, ArrowRight, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -56,8 +57,9 @@ export const RequestAccessPage: React.FC = () => {
 
       toast.success('Access request submitted! Please verify OTP.');
       window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || 'Failed to submit request.';
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = errorObj.response?.data?.error?.message || 'Failed to submit request.';
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -66,26 +68,32 @@ export const RequestAccessPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-xl">
-        <Card className="shadow-lg border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-8 bg-background">
+      <div className="w-full max-w-xl space-y-6">
+        <div className="flex justify-center">
+          <a href="/">
+            <Logo size="lg" />
+          </a>
+        </div>
+
+        <Card className="shadow-lg border-border">
           <CardHeader className="text-center">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
               <Landmark className="w-6 h-6" />
             </div>
-            <CardTitle className="text-2xl">Institutional Access Request</CardTitle>
+            <CardTitle className="text-2xl font-black">Institutional Access Request</CardTitle>
             <CardDescription>
               Government / College / Corporate onboarding workflow requiring governance verification
             </CardDescription>
 
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg mt-4">
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl mt-4">
               <button
                 type="button"
                 onClick={() => setOrgType('university')}
-                className={`py-2 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all ${
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all min-h-[40px] ${
                   orgType === 'university'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-card text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Landmark className="w-4 h-4" /> University / Institute
@@ -93,10 +101,10 @@ export const RequestAccessPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setOrgType('industry')}
-                className={`py-2 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all ${
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all min-h-[40px] ${
                   orgType === 'industry'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-card text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Building2 className="w-4 h-4" /> Industry Partner / CSR
@@ -105,7 +113,7 @@ export const RequestAccessPage: React.FC = () => {
           </CardHeader>
 
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+            <div className="mb-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2 font-medium">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -207,11 +215,11 @@ export const RequestAccessPage: React.FC = () => {
               onChange={(e) => setWebsite(e.target.value)}
             />
 
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs text-slate-500 dark:text-slate-400">
+            <div className="p-3.5 bg-muted/60 rounded-xl text-xs text-muted-foreground border border-border">
               ℹ️ After verifying email OTP, your application is reviewed by the Platform Admin. You will receive an approval email once granted access.
             </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
+            <Button type="submit" className="w-full font-bold" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
               Submit Request for Governance Review
             </Button>
           </form>

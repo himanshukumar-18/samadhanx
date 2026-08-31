@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { apiClient } from '../../../lib/apiClient';
 import { Button } from '../../../shared/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
+import { Logo } from '../../../shared/components/Logo';
 import { KeyRound, RotateCw, AlertCircle, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -84,8 +85,9 @@ export const VerifyOtpPage: React.FC = () => {
         toast('Institutional account pending Admin review.', { icon: '⏳' });
         setTimeout(() => (window.location.href = '/login'), 2000);
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || 'Incorrect OTP code. Please try again.';
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = errorObj.response?.data?.error?.message || 'Incorrect OTP code. Please try again.';
       setErrorMsg(msg);
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -107,8 +109,9 @@ export const VerifyOtpPage: React.FC = () => {
       setTimeLeft(600);
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || 'Failed to resend OTP.';
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = errorObj.response?.data?.error?.message || 'Failed to resend OTP.';
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -123,25 +126,31 @@ export const VerifyOtpPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-center">
+          <a href="/">
+            <Logo size="lg" />
+          </a>
+        </div>
+
         <motion.div
           animate={shake ? { x: [-10, 10, -10, 10, 0] } : {}}
           transition={{ duration: 0.4 }}
         >
-          <Card className="shadow-lg border-slate-200 dark:border-slate-800 text-center">
+          <Card className="shadow-lg border-border text-center">
             <CardHeader>
-              <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
                 <KeyRound className="w-6 h-6" />
               </div>
-              <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+              <CardTitle className="text-2xl font-black">Verify Your Email</CardTitle>
               <CardDescription>
-                Enter the 6-digit One-Time Password sent to <span className="font-semibold text-slate-800 dark:text-slate-200">{email || 'your email'}</span>
+                Enter the 6-digit One-Time Password sent to <span className="font-bold text-foreground">{email || 'your email'}</span>
               </CardDescription>
             </CardHeader>
 
             {errorMsg && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center justify-center gap-2">
+              <div className="mb-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center justify-center gap-2 font-medium">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{errorMsg}</span>
               </div>
@@ -159,19 +168,19 @@ export const VerifyOtpPage: React.FC = () => {
                     value={digit}
                     onChange={(e) => handleChange(idx, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(idx, e)}
-                    className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all shadow-sm"
+                    className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl border border-border bg-card text-foreground focus:border-primary focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all shadow-2xs"
                   />
                 ))}
               </div>
 
-              <div className="text-xs text-slate-500 flex items-center justify-center gap-2">
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-2">
                 <span>Code expires in:</span>
-                <span className={`font-mono font-bold ${timeLeft < 120 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                <span className={`font-mono font-bold ${timeLeft < 120 ? 'text-destructive' : 'text-foreground'}`}>
                   {formatTime(timeLeft)}
                 </span>
               </div>
 
-              <Button type="submit" className="w-full" isLoading={isVerifying} rightIcon={<ArrowRight className="w-4 h-4" />}>
+              <Button type="submit" className="w-full font-bold" isLoading={isVerifying} rightIcon={<ArrowRight className="w-4 h-4" />}>
                 Verify & Activate Account
               </Button>
 
@@ -180,7 +189,7 @@ export const VerifyOtpPage: React.FC = () => {
                   type="button"
                   onClick={handleResend}
                   disabled={isResending || timeLeft > 540}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50 inline-flex items-center gap-1.5"
+                  className="text-xs font-bold text-primary hover:underline disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   <RotateCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
                   Resend OTP Code

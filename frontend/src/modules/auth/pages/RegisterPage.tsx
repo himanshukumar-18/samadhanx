@@ -3,6 +3,7 @@ import { apiClient } from '../../../lib/apiClient';
 import { Button } from '../../../shared/components/ui/Button';
 import { Input } from '../../../shared/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
+import { Logo } from '../../../shared/components/Logo';
 import { Users, GraduationCap, ArrowRight, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -83,8 +84,9 @@ export const RegisterPage: React.FC = () => {
 
       toast.success('Registration successful! Please verify your email OTP.');
       window.location.href = `/verify-otp?email=${encodeURIComponent(email)}`;
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || 'Registration failed. Please check your inputs.';
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { message?: string } } } };
+      const msg = errorObj.response?.data?.error?.message || 'Registration failed. Please check your inputs.';
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -93,21 +95,27 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-xl">
-        <Card className="shadow-lg border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-8 bg-background">
+      <div className="w-full max-w-xl space-y-6">
+        <div className="flex justify-center">
+          <a href="/">
+            <Logo size="lg" />
+          </a>
+        </div>
+
+        <Card className="shadow-lg border-border">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Create Your Account</CardTitle>
+            <CardTitle className="text-2xl font-black">Create Your Account</CardTitle>
             <CardDescription>Join SamadhanX to crowdsource and build real-world societal solutions</CardDescription>
 
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg mt-4">
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl mt-4">
               <button
                 type="button"
                 onClick={() => setRoleType('citizen')}
-                className={`py-2 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all ${
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all min-h-[40px] ${
                   roleType === 'citizen'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-card text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Users className="w-4 h-4" /> Citizen / Submitter
@@ -115,10 +123,10 @@ export const RegisterPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRoleType('student')}
-                className={`py-2 px-3 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all ${
+                className={`py-2.5 px-3 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all min-h-[40px] ${
                   roleType === 'student'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-card text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <GraduationCap className="w-4 h-4" /> Student Innovator
@@ -127,7 +135,7 @@ export const RegisterPage: React.FC = () => {
           </CardHeader>
 
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+            <div className="mb-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2 font-medium">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -162,7 +170,7 @@ export const RegisterPage: React.FC = () => {
             />
 
             {roleType === 'citizen' ? (
-              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-4 pt-2 border-t border-border">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Phone Number"
@@ -196,13 +204,13 @@ export const RegisterPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-4 pt-2 border-t border-border">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Affiliated University / College (Approved Only)
                   </label>
                   <select
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/40 focus:border-primary focus:outline-none min-h-[44px]"
                     value={selectedUnivId}
                     onChange={(e) => setSelectedUnivId(e.target.value)}
                     required
@@ -253,13 +261,13 @@ export const RegisterPage: React.FC = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full mt-4" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
+            <Button type="submit" className="w-full mt-4 font-bold" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
               Create Account & Verify OTP
             </Button>
 
             <div className="text-center pt-2">
-              <a href="/request-access" className="text-xs text-slate-500 hover:text-indigo-600">
-                Are you a University or Industry Partner? <span className="font-semibold underline">Request Access here</span>
+              <a href="/request-access" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                Are you a University or Industry Partner? <span className="font-bold underline">Request Access here</span>
               </a>
             </div>
           </form>

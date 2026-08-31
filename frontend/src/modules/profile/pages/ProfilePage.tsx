@@ -24,17 +24,17 @@ export const ProfilePage: React.FC = () => {
   const displayName = user?.email ? user.email.split('@')[0] : 'Community Solver';
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 pb-12 w-full min-w-0">
       {/* 1. Header Banner & Avatar Card */}
       <Card className="p-0 overflow-hidden border-border rounded-2xl">
-        <div className="h-28 bg-gradient-to-r from-primary to-indigo-700 relative" />
+        <div className="h-28 bg-primary/20 relative border-b border-border" />
         <div className="p-5 sm:p-6 pt-0 space-y-4">
           <div className="flex items-end justify-between -mt-12 mb-2">
             <div className="w-24 h-24 rounded-2xl ring-4 ring-card shadow-lg bg-primary text-primary-foreground font-black text-2xl flex items-center justify-center uppercase">
               {displayName.slice(0, 2)}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => toast.success('Profile settings')}>
+              <Button variant="outline" size="sm" onClick={() => toast.success('Profile settings opened')}>
                 <Settings className="w-4 h-4 mr-1.5" /> Edit Profile
               </Button>
             </div>
@@ -42,7 +42,7 @@ export const ProfilePage: React.FC = () => {
 
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-extrabold text-foreground">{displayName}</h1>
+              <h1 className="text-lg sm:text-xl font-black text-foreground">{displayName}</h1>
               <CheckCircle2 className="w-4 h-4 text-primary" />
               <Badge variant="student" className="text-xs uppercase">
                 {config.displayName}

@@ -22,21 +22,21 @@ export const Button: React.FC<ButtonProps> = ({
   rightIcon,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg active:scale-[0.98]';
+  const baseStyles = 'inline-flex items-center justify-center font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl active:scale-[0.98] select-none';
 
   const variants = {
-    primary: 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500 shadow-sm hover:shadow',
-    secondary: 'bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600 focus:ring-slate-500',
-    outline: 'border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-slate-400',
-    ghost: 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 focus:ring-slate-400',
-    destructive: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500 shadow-sm',
-    accent: 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500 shadow-sm',
+    primary: 'bg-primary hover:bg-primary-hover text-primary-foreground shadow-xs hover:shadow-md shadow-primary/20',
+    secondary: 'bg-secondary hover:bg-secondary/80 text-secondary-foreground',
+    outline: 'border border-border bg-card hover:bg-muted text-foreground',
+    ghost: 'hover:bg-muted text-foreground',
+    destructive: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-xs',
+    accent: 'bg-accent hover:bg-accent-hover text-accent-foreground shadow-xs',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs gap-1.5',
-    md: 'px-4 py-2 text-sm gap-2',
-    lg: 'px-6 py-2.5 text-base gap-2.5',
+    sm: 'px-3.5 py-1.5 text-xs gap-1.5 min-h-[38px]',
+    md: 'px-4 py-2 text-sm gap-2 min-h-[44px]',
+    lg: 'px-6 py-2.5 text-base gap-2.5 min-h-[48px]',
   };
 
   return (

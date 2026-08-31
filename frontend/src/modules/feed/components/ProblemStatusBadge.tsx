@@ -3,22 +3,22 @@ import { ProblemStatus, ImpactLevel } from '../../../types/problem';
 import { CheckCircle2, Clock, Users, Rocket, Wrench, ShieldCheck } from 'lucide-react';
 
 export const ProblemStatusBadge: React.FC<{ status: ProblemStatus }> = ({ status }) => {
-  const configs: Record<ProblemStatus, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
-    reported: { label: 'Reported', bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', icon: <Clock className="w-3 h-3" /> },
-    under_review: { label: 'Under Review', bg: 'bg-yellow-100 dark:bg-yellow-950/60', text: 'text-yellow-800 dark:text-yellow-300', icon: <Clock className="w-3 h-3 text-yellow-600" /> },
-    verified: { label: 'Verified Challenge', bg: 'bg-emerald-100 dark:bg-emerald-950/60', text: 'text-emerald-800 dark:text-emerald-300', icon: <ShieldCheck className="w-3 h-3 text-emerald-600" /> },
-    discussion: { label: 'In Discussion', bg: 'bg-blue-100 dark:bg-blue-950/60', text: 'text-blue-800 dark:text-blue-300', icon: <Users className="w-3 h-3 text-blue-600" /> },
-    team_forming: { label: 'Team Forming', bg: 'bg-indigo-100 dark:bg-indigo-950/60', text: 'text-indigo-800 dark:text-indigo-300', icon: <Users className="w-3 h-3 text-indigo-600" /> },
-    in_progress: { label: 'Active R&D', bg: 'bg-purple-100 dark:bg-purple-950/60', text: 'text-purple-800 dark:text-purple-300', icon: <Wrench className="w-3 h-3 text-purple-600" /> },
-    prototype: { label: 'Prototype Ready', bg: 'bg-teal-100 dark:bg-teal-950/60', text: 'text-teal-800 dark:text-teal-300', icon: <Rocket className="w-3 h-3 text-teal-600" /> },
-    pilot: { label: 'Live Field Pilot', bg: 'bg-amber-100 dark:bg-amber-950/60', text: 'text-amber-800 dark:text-amber-300', icon: <Rocket className="w-3 h-3 text-amber-600" /> },
-    solved: { label: 'Solved & Deployed', bg: 'bg-green-100 dark:bg-green-950/60', text: 'text-green-800 dark:text-green-300', icon: <CheckCircle2 className="w-3 h-3 text-green-600" /> },
+  const configs: Record<ProblemStatus, { label: string; style: string; icon: React.ReactNode }> = {
+    reported: { label: 'Reported', style: 'bg-muted text-muted-foreground border-border', icon: <Clock className="w-3 h-3" /> },
+    under_review: { label: 'Under Review', style: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20', icon: <Clock className="w-3 h-3" /> },
+    verified: { label: 'Verified Challenge', style: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', icon: <ShieldCheck className="w-3 h-3" /> },
+    discussion: { label: 'In Discussion', style: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20', icon: <Users className="w-3 h-3" /> },
+    team_forming: { label: 'Team Forming', style: 'bg-primary/10 text-primary border-primary/20', icon: <Users className="w-3 h-3" /> },
+    in_progress: { label: 'Active R&D', style: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', icon: <Wrench className="w-3 h-3" /> },
+    prototype: { label: 'Prototype Ready', style: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', icon: <Rocket className="w-3 h-3" /> },
+    pilot: { label: 'Live Field Pilot', style: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', icon: <Rocket className="w-3 h-3" /> },
+    solved: { label: 'Solved & Deployed', style: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" /> },
   };
 
   const item = configs[status] || configs.reported;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-current/15 ${item.bg} ${item.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${item.style}`}>
       {item.icon}
       <span>{item.label}</span>
     </span>
@@ -27,16 +27,16 @@ export const ProblemStatusBadge: React.FC<{ status: ProblemStatus }> = ({ status
 
 export const ImpactBadge: React.FC<{ impact: ImpactLevel }> = ({ impact }) => {
   const configs: Record<ImpactLevel, { label: string; style: string }> = {
-    low: { label: 'Low Impact', style: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300' },
-    medium: { label: 'Moderate Impact', style: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' },
-    high: { label: 'High Priority', style: 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' },
-    critical: { label: 'Critical Urgency', style: 'bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-black' },
+    low: { label: 'Low Impact', style: 'bg-muted text-muted-foreground border border-border' },
+    medium: { label: 'Moderate Impact', style: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20' },
+    high: { label: 'High Priority', style: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' },
+    critical: { label: 'Critical Urgency', style: 'bg-destructive/10 text-destructive border border-destructive/20 font-black' },
   };
 
   const item = configs[impact] || configs.medium;
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider ${item.style}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider ${item.style}`}>
       {item.label}
     </span>
   );
