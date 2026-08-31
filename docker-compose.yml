@@ -1,0 +1,157 @@
+services:
+
+  # ─────────────────────────────
+  # Frontend
+  # ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: samadhanx-frontend
+
+    ports:
+      - "${FRONTEND_PORT}:5173"
+
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+
+    environment:
+      VITE_API_URL: http://localhost:${BACKEND_PORT}
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+  # ─────────────────────────────
+  # Backend
+  # ─────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: samadhanx-backend
+
+    ports:
+      - "${BACKEND_PORT}:8000"
+
+    volumes:
+      - ./backend:/app
+
+    env_file:
+      - .env
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+
+  # ─────────────────────────────
+  # PostgreSQL + pgvector
+  # ─────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+
+    container_name: samadhanx-postgres
+
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+  # ─────────────────────────────
+  # Redis
+  # ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+
+    container_name: samadhanx-redis
+
+    ports:
+      - "${REDIS_PORT}:6379"
+
+    volumes:
+      - redis_data:/data
+
+    command:
+      - redis-server
+      - --appendonly
+      - yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    restart: unless-stopped
+
+  # ─────────────────────────────
+  # Celery Worker
+  # ─────────────────────────────
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: samadhanx-celery-worker
+
+    command: [ "celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info" ]
+
+    volumes:
+      - ./backend:/app
+
+    env_file:
+      - .env
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+      postgres:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+volumes:
+
+  postgres_data:
+    name: samadhanx-postgres-data
+
+  redis_data:
+    name: samadhanx-redis-data
