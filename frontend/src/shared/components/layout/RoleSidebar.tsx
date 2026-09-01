@@ -69,6 +69,15 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
   const activeRole = user?.role || 'citizen';
   const config = getRoleConfig(activeRole);
 
+  const handlePrimaryAction = () => {
+    if (window.location.pathname === '/' || window.location.pathname === config.primaryActionPath) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.location.href = config.primaryActionPath;
+    }
+    if (onItemClick) onItemClick();
+  };
+
   return (
     <aside className="w-full h-full flex flex-col justify-between py-2 px-1 space-y-4 select-none">
       <div className="space-y-3.5">
@@ -88,10 +97,7 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
           variant="primary"
           size="sm"
           className="w-full h-11 rounded-xl text-sm font-bold shadow-xs"
-          onClick={() => {
-            window.location.href = config.primaryActionPath;
-            if (onItemClick) onItemClick();
-          }}
+          onClick={handlePrimaryAction}
           leftIcon={<PlusCircle className="w-4 h-4" />}
         >
           {config.primaryActionLabel}

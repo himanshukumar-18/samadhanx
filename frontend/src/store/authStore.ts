@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { authApi } from '../api/auth';
 
 export interface UserData {
   id: string;
@@ -30,6 +31,7 @@ interface AuthState {
   setAuth: (data: { user: UserData; tokens: AuthTokens }) => void;
   setTokens: (tokens: AuthTokens) => void;
   setUser: (user: UserData) => void;
+  restoreSession: () => Promise<void>;
   logout: () => void;
 }
 
@@ -67,7 +69,7 @@ const getStoredAuth = () => {
 
 const initialAuth = getStoredAuth();
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: initialAuth.user,
   accessToken: initialAuth.accessToken,
   refreshToken: initialAuth.refreshToken,
@@ -75,7 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: initialAuth.isAuthenticated,
   isVerified: initialAuth.isVerified,
   isApproved: initialAuth.isApproved,
-  isLoading: false,
+  isLoading: !!initialAuth.accessToken,
 
   setAuth: ({ user, tokens }) => {
     localStorage.setItem('samadhanx_tokens', JSON.stringify(tokens));
@@ -88,6 +90,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: true,
       isVerified: user.is_verified,
       isApproved: user.is_approved,
+      isLoading: false,
     });
   },
 
@@ -110,6 +113,27 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
+  restoreSession: async () => {
+    const token = get().accessToken;
+    if (!token) {
+      set({ isLoading: false });
+      return;
+    }
+
+    try {
+      set({ isLoading: true });
+      const user = await authApi.getMe();
+      if (user) {
+        get().setUser(user);
+      }
+    } catch (err) {
+      console.warn('Session restoration failed:', err);
+      get().logout();
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('samadhanx_tokens');
     localStorage.removeItem('samadhanx_user');
@@ -121,6 +145,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       isVerified: false,
       isApproved: false,
+      isLoading: false,
     });
   },
 }));

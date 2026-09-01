@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
-import { Problem } from '../../../types/problem';
+import { useQuery } from '@tanstack/react-query';
 import { ProblemPost } from '../../feed/components/ProblemPost';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
+import { FeedSkeleton } from '../../../shared/components/ui/FeedSkeleton';
 import { Search, Sparkles, Inbox } from 'lucide-react';
+import { problemsApi } from '../../../api/problems';
+import { mapApiProblem } from '../../../lib/problemMapper';
 
-export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initialProblems = [] }) => {
+export const ExplorePage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState('All');
-  const [problems] = useState<Problem[]>(initialProblems);
 
   const sectors = ['All', 'Water & Sanitation', 'Clean Energy & Solar', 'Agriculture & Rural Tech', 'Healthcare & Medical Devices', 'Waste Management'];
 
-  const filtered = problems.filter((p) => {
-    if (selectedSector !== 'All' && p.category !== selectedSector) return false;
-    if (query && !p.title.toLowerCase().includes(query.toLowerCase()) && !p.description.toLowerCase().includes(query.toLowerCase())) return false;
-    return true;
+  const { data: rawProblems, isLoading } = useQuery({
+    queryKey: ['explore-problems', selectedSector, query],
+    queryFn: () =>
+      problemsApi.listProblems({
+        category: selectedSector === 'All' ? undefined : selectedSector,
+        search: query.trim() || undefined,
+      }),
   });
+
+  const backendProblems = Array.isArray(rawProblems) ? rawProblems.map(mapApiProblem) : [];
 
   return (
     <div className="space-y-4 pb-12 w-full min-w-0">
@@ -23,7 +30,7 @@ export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initial
         <div className="flex items-center justify-between">
           <h1 className="text-base sm:text-lg font-black text-foreground">Explore Societal Challenges</h1>
           <span className="text-xs text-primary font-bold flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Discovery
+            <Sparkles className="w-3.5 h-3.5" /> Discovery Engine
           </span>
         </div>
 
@@ -31,7 +38,7 @@ export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initial
           <Search className="absolute left-3.5 top-3 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search problems by keyword, district, or university..."
+            placeholder="Search problems by keyword, district, or state..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-muted/70 hover:bg-muted focus:bg-card rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all h-11"
@@ -58,8 +65,10 @@ export const ExplorePage: React.FC<{ initialProblems?: Problem[] }> = ({ initial
       </div>
 
       <div className="space-y-4 w-full">
-        {filtered.length > 0 ? (
-          filtered.map((p) => (
+        {isLoading ? (
+          <FeedSkeleton />
+        ) : backendProblems.length > 0 ? (
+          backendProblems.map((p) => (
             <ProblemPost key={p.id} problem={p} />
           ))
         ) : (

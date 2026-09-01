@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Problem } from '../../../types/problem';
+import { useQuery } from '@tanstack/react-query';
 import { ProblemPost } from '../components/ProblemPost';
 import { CreateProblemCard } from '../components/CreateProblemCard';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
+import { FeedSkeleton } from '../../../shared/components/ui/FeedSkeleton';
 import { Sparkles, Flame, MapPin, Clock, Inbox } from 'lucide-react';
+import { problemsApi } from '../../../api/problems';
+import { mapApiProblem } from '../../../lib/problemMapper';
 
-export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialProblems = [] }) => {
+export const FeedPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'for_you' | 'trending' | 'nearby' | 'latest'>('for_you');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [problems, setProblems] = useState<Problem[]>(initialProblems);
 
   const categories = [
     'All',
@@ -19,14 +21,16 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
     'Waste Management',
   ];
 
-  const filteredProblems = problems.filter((p) => {
-    if (selectedCategory !== 'All' && p.category !== selectedCategory) return false;
-    return true;
+  const { data: rawProblems, isLoading, refetch } = useQuery({
+    queryKey: ['problems', selectedCategory, activeTab],
+    queryFn: () =>
+      problemsApi.listProblems({
+        category: selectedCategory === 'All' ? undefined : selectedCategory,
+        feed_type: activeTab,
+      }),
   });
 
-  const handleNewProblem = (newProblem: Problem) => {
-    setProblems([newProblem, ...problems]);
-  };
+  const backendProblems = Array.isArray(rawProblems) ? rawProblems.map(mapApiProblem) : [];
 
   return (
     <div className="space-y-4 sm:space-y-5 min-w-0 w-full">
@@ -76,7 +80,7 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
         </div>
       </div>
 
-      {/* 2. Horizontal Sector Filter Pills (Constrained to container) */}
+      {/* 2. Horizontal Sector Filter Pills */}
       <div className="w-full max-w-full min-w-0 overflow-x-auto pb-1 no-scrollbar text-sm">
         <div className="flex items-center gap-2 min-w-max">
           {categories.map((cat) => (
@@ -96,20 +100,22 @@ export const FeedPage: React.FC<{ initialProblems?: Problem[] }> = ({ initialPro
       </div>
 
       {/* 3. Inline Problem Creator Card */}
-      <CreateProblemCard onCreated={handleNewProblem} />
+      <CreateProblemCard onCreated={refetch} />
 
-      {/* 4. Stream of Problem Posts or Meaningful Empty State */}
+      {/* 4. Stream of Problem Posts, Skeleton, or Empty State */}
       <div className="space-y-4 sm:space-y-5 w-full">
-        {filteredProblems.length > 0 ? (
-          filteredProblems.map((problem) => (
+        {isLoading ? (
+          <FeedSkeleton />
+        ) : backendProblems.length > 0 ? (
+          backendProblems.map((problem) => (
             <ProblemPost key={problem.id} problem={problem} />
           ))
         ) : (
           <EmptyState
             icon={Inbox}
-            title={selectedCategory === 'All' ? 'No problems reported yet' : `No problems in ${selectedCategory}`}
-            description="Be the first to report a problem in your community and mobilize student teams and mentors."
-            actionLabel="Report a Problem"
+            title={selectedCategory === 'All' ? 'No societal problems reported yet' : `No problems in ${selectedCategory}`}
+            description="Be the first to report a societal challenge in your community and mobilize university innovation pods."
+            actionLabel="Report a Challenge"
             onAction={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           />
         )}

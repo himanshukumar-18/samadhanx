@@ -17,9 +17,12 @@ from app.schemas.admin import (
     RestrictedRequestResponse,
 )
 from app.schemas.common import StandardApiResponse
+from app.schemas.problem import ProblemModerationUpdate, ProblemResponse
+from app.services.problem_service import ProblemService
 from app.tasks.email import send_approval_email_task, send_rejection_email_task
 
 router = APIRouter(prefix="/admin", tags=["Admin Operations"])
+
 
 # 1. List All Pending / Reviewed Requests
 @router.get("/requests", response_model=StandardApiResponse[list[RestrictedRequestResponse]])
@@ -52,6 +55,7 @@ async def list_restricted_requests(
         for r in requests
     ]
     return StandardApiResponse(success=True, data=items)
+
 
 # 2. Approve Request
 @router.patch("/requests/{request_id}/approve", response_model=StandardApiResponse[RestrictedRequestResponse])
@@ -108,7 +112,10 @@ async def approve_request(
     await db.commit()
 
     # Dispatch Celery Approval Email
-    send_approval_email_task.delay(req.official_email, req.org_name, req.org_type.value)
+    try:
+        send_approval_email_task.delay(req.official_email, req.org_name, req.org_type.value)
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
@@ -127,6 +134,7 @@ async def approve_request(
         ),
         message=f"{req.org_type.value.capitalize()} request for '{req.org_name}' approved successfully.",
     )
+
 
 # 3. Reject Request
 @router.patch("/requests/{request_id}/reject", response_model=StandardApiResponse[RestrictedRequestResponse])
@@ -184,7 +192,38 @@ async def reject_request(
         message=f"{req.org_type.value.capitalize()} request for '{req.org_name}' rejected.",
     )
 
-# 4. View Audit Logs
+
+# 4. Problem Moderation
+@router.patch("/problems/{problem_id}/moderate", response_model=ProblemResponse)
+async def moderate_problem(
+    problem_id: uuid.UUID,
+    data: ProblemModerationUpdate,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProblemService(db)
+    problem = await service.get_problem(problem_id)
+    update_data = {"status": data.status}
+    if data.is_verified is not None:
+        update_data["is_verified"] = data.is_verified
+
+    updated = await service.repo.update_problem(problem, update_data)
+
+    # Audit Log
+    audit = AuditLog(
+        actor_id=current_admin.id,
+        action="MODERATE_PROBLEM",
+        target_type="problem",
+        target_id=str(problem.id),
+        metadata_json={"new_status": data.status.value, "is_verified": data.is_verified},
+    )
+    db.add(audit)
+    await db.commit()
+
+    return updated
+
+
+# 5. View Audit Logs
 @router.get("/audit-logs", response_model=StandardApiResponse[list[AuditLogResponse]])
 async def list_audit_logs(
     limit: int = 50,

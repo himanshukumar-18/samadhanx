@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, get_db
+from app.core.rate_limit import rate_limiter
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -27,10 +28,12 @@ from app.models.profiles import (
 from app.models.restricted_request import RestrictedAccountRequest
 from app.models.user import User
 from app.schemas.auth import (
+    ForgotPasswordRequest,
     LoginRequest,
     OTPResendRequest,
     OTPVerifyRequest,
     RefreshTokenRequest,
+    ResetPasswordRequest,
     Token,
 )
 from app.schemas.common import StandardApiResponse
@@ -46,6 +49,7 @@ from app.tasks.email import send_otp_email_task, send_welcome_email_task
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+
 async def record_audit(db: AsyncSession, action: str, target_type: str, target_id: str, actor_id: uuid.UUID | None = None, metadata: dict = None):
     log = AuditLog(
         actor_id=actor_id,
@@ -55,6 +59,7 @@ async def record_audit(db: AsyncSession, action: str, target_type: str, target_i
         metadata_json=metadata or {},
     )
     db.add(log)
+
 
 # 1. Public list of approved universities for Student dropdown
 @router.get("/universities", response_model=StandardApiResponse[list[UniversityListItem]])
@@ -74,8 +79,9 @@ async def list_approved_universities(db: AsyncSession = Depends(get_db)):
     ]
     return StandardApiResponse(success=True, data=items)
 
+
 # 2. Register Citizen (Public self-register)
-@router.post("/register/citizen", response_model=StandardApiResponse[dict])
+@router.post("/register/citizen", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(10, "rl_reg_citizen"))])
 async def register_citizen(data: CitizenRegister, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where(User.email == data.email.lower()))
     if existing.scalar_one_or_none():
@@ -105,7 +111,6 @@ async def register_citizen(data: CitizenRegister, db: AsyncSession = Depends(get
     )
     db.add(profile)
 
-    # Generate OTP
     otp_code = generate_otp(6)
     otp_record = OTPVerification(
         email=user.email,
@@ -117,8 +122,10 @@ async def register_citizen(data: CitizenRegister, db: AsyncSession = Depends(get
     await record_audit(db, "REGISTER_CITIZEN", "user", str(user.id), user.id, {"email": user.email})
     await db.commit()
 
-    # Dispatch Celery Email Task
-    send_otp_email_task.delay(user.email, otp_code, "registration")
+    try:
+        send_otp_email_task.delay(user.email, otp_code, "registration")
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
@@ -126,8 +133,9 @@ async def register_citizen(data: CitizenRegister, db: AsyncSession = Depends(get
         message="Citizen account registered. Please verify your email with the 6-digit OTP.",
     )
 
+
 # 3. Register Student (Public self-register, requires approved university)
-@router.post("/register/student", response_model=StandardApiResponse[dict])
+@router.post("/register/student", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(10, "rl_reg_student"))])
 async def register_student(data: StudentRegister, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where(User.email == data.email.lower()))
     if existing.scalar_one_or_none():
@@ -136,7 +144,6 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
             detail={"code": "EMAIL_EXISTS", "message": "An account with this email already exists."},
         )
 
-    # Validate University exists and is approved
     univ_query = select(UniversityProfile).where(
         and_(UniversityProfile.id == data.university_id, UniversityProfile.is_approved.is_(True))
     )
@@ -181,13 +188,17 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
     await record_audit(db, "REGISTER_STUDENT", "user", str(user.id), user.id, {"email": user.email, "university": university.university_name})
     await db.commit()
 
-    send_otp_email_task.delay(user.email, otp_code, "registration")
+    try:
+        send_otp_email_task.delay(user.email, otp_code, "registration")
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
         data={"user_id": str(user.id), "email": user.email, "role": user.role.value},
         message="Student account registered. Please verify your email with the 6-digit OTP.",
     )
+
 
 # 4. University Request Registration (Goes to Pending for Admin Approval)
 @router.post("/register/university-request", response_model=StandardApiResponse[dict])
@@ -205,7 +216,7 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
         role=UserRole.UNIVERSITY,
         is_verified=False,
         is_active=True,
-        is_approved=False, # Restricted until Admin approval
+        is_approved=False,
     )
     db.add(user)
     await db.flush()
@@ -245,13 +256,17 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
     await record_audit(db, "REQUEST_UNIVERSITY_ACCESS", "request", str(request_record.id), user.id, {"org_name": data.university_name})
     await db.commit()
 
-    send_otp_email_task.delay(user.email, otp_code, "registration")
+    try:
+        send_otp_email_task.delay(user.email, otp_code, "registration")
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
         data={"user_id": str(user.id), "email": user.email, "role": user.role.value, "status": "pending_approval"},
         message="University request submitted. Please verify OTP. Your account will undergo administrator review.",
     )
+
 
 # 5. Industry Request Registration (Goes to Pending for Admin Approval)
 @router.post("/register/industry-request", response_model=StandardApiResponse[dict])
@@ -308,7 +323,10 @@ async def register_industry_request(data: IndustryRequestRegister, db: AsyncSess
     await record_audit(db, "REQUEST_INDUSTRY_ACCESS", "request", str(request_record.id), user.id, {"company_name": data.company_name})
     await db.commit()
 
-    send_otp_email_task.delay(user.email, otp_code, "registration")
+    try:
+        send_otp_email_task.delay(user.email, otp_code, "registration")
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
@@ -316,8 +334,9 @@ async def register_industry_request(data: IndustryRequestRegister, db: AsyncSess
         message="Industry request submitted. Please verify OTP. Your account will undergo administrator review.",
     )
 
+
 # 6. Verify OTP
-@router.post("/verify-otp", response_model=StandardApiResponse[dict])
+@router.post("/verify-otp", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(15, "rl_verify_otp"))])
 async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
     user_query = (
         select(User)
@@ -337,7 +356,6 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
             detail={"code": "USER_NOT_FOUND", "message": "No account associated with this email address."},
         )
 
-    # Fetch active OTP record
     otp_query = (
         select(OTPVerification)
         .where(
@@ -358,14 +376,12 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
             detail={"code": "OTP_NOT_FOUND", "message": "No active OTP request found. Please request a new OTP."},
         )
 
-    # Check attempt lockout
     if otp_record.attempt_count >= 5:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={"code": "MAX_ATTEMPTS_EXCEEDED", "message": "Too many failed attempts. Please request a new OTP."},
         )
 
-    # Check expiration
     expires = otp_record.expires_at if otp_record.expires_at.tzinfo else otp_record.expires_at.replace(tzinfo=UTC)
     if datetime.now(UTC) > expires:
         raise HTTPException(
@@ -373,7 +389,6 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
             detail={"code": "OTP_EXPIRED", "message": "Your OTP has expired. Please request a new one."},
         )
 
-    # Check code match
     if otp_record.otp_code != data.otp_code:
         otp_record.attempt_count += 1
         await db.commit()
@@ -382,7 +397,6 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
             detail={"code": "INVALID_OTP", "message": f"Incorrect OTP code. {5 - otp_record.attempt_count} attempts remaining."},
         )
 
-    # Mark OTP used and user verified
     otp_record.is_used = True
     user.is_verified = True
     await record_audit(db, "VERIFY_OTP_SUCCESS", "user", str(user.id), user.id)
@@ -394,9 +408,11 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
     elif user.student_profile:
         full_name = user.student_profile.full_name
 
-    # Send Welcome email if Citizen or Student (immediate activation)
     if user.role in [UserRole.CITIZEN, UserRole.STUDENT]:
-        send_welcome_email_task.delay(user.email, full_name, user.role.value)
+        try:
+            send_welcome_email_task.delay(user.email, full_name, user.role.value)
+        except Exception:
+            pass
 
     return StandardApiResponse(
         success=True,
@@ -410,8 +426,9 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
         message="Email verified successfully. You can now access the platform.",
     )
 
+
 # 7. Resend OTP
-@router.post("/resend-otp", response_model=StandardApiResponse[dict])
+@router.post("/resend-otp", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(5, "rl_resend_otp"))])
 async def resend_otp(data: OTPResendRequest, db: AsyncSession = Depends(get_db)):
     user = (await db.execute(select(User).where(User.email == data.email.lower()))).scalar_one_or_none()
     if not user:
@@ -420,7 +437,6 @@ async def resend_otp(data: OTPResendRequest, db: AsyncSession = Depends(get_db))
             detail={"code": "USER_NOT_FOUND", "message": "No account associated with this email address."},
         )
 
-    # Rate limiting check: max 3 requests in last 10 minutes
     recent_otps = (
         await db.execute(
             select(OTPVerification).where(
@@ -449,7 +465,10 @@ async def resend_otp(data: OTPResendRequest, db: AsyncSession = Depends(get_db))
     await record_audit(db, "RESEND_OTP", "user", str(user.id), user.id)
     await db.commit()
 
-    send_otp_email_task.delay(user.email, otp_code, data.purpose.value)
+    try:
+        send_otp_email_task.delay(user.email, otp_code, data.purpose.value)
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,
@@ -457,8 +476,101 @@ async def resend_otp(data: OTPResendRequest, db: AsyncSession = Depends(get_db))
         message="A new OTP has been dispatched to your email.",
     )
 
-# 8. Login
-@router.post("/login", response_model=StandardApiResponse[Token])
+
+# 8. Forgot Password (Request Reset OTP)
+@router.post("/forgot-password", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(5, "rl_forgot_pw"))])
+async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    user = (await db.execute(select(User).where(User.email == data.email.lower()))).scalar_one_or_none()
+
+    # Generic response to prevent email enumeration
+    if not user:
+        return StandardApiResponse(
+            success=True,
+            data={"email": data.email.lower()},
+            message="If an account with this email exists, a password reset OTP has been dispatched.",
+        )
+
+    otp_code = generate_otp(6)
+    otp_record = OTPVerification(
+        email=user.email,
+        otp_code=otp_code,
+        purpose=OTPPurpose.PASSWORD_RESET,
+        expires_at=datetime.now(UTC) + timedelta(minutes=15),
+    )
+    db.add(otp_record)
+    await record_audit(db, "FORGOT_PASSWORD_REQUEST", "user", str(user.id), user.id)
+    await db.commit()
+
+    try:
+        send_otp_email_task.delay(user.email, otp_code, "password_reset")
+    except Exception:
+        pass
+
+    return StandardApiResponse(
+        success=True,
+        data={"email": user.email},
+        message="If an account with this email exists, a password reset OTP has been dispatched.",
+    )
+
+
+# 9. Reset Password (Verify Reset OTP & Set New Password)
+@router.post("/reset-password", response_model=StandardApiResponse[dict], dependencies=[Depends(rate_limiter(5, "rl_reset_pw"))])
+async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    user = (await db.execute(select(User).where(User.email == data.email.lower()))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "USER_NOT_FOUND", "message": "No account associated with this email address."},
+        )
+
+    otp_query = (
+        select(OTPVerification)
+        .where(
+            and_(
+                OTPVerification.email == data.email.lower(),
+                OTPVerification.purpose == OTPPurpose.PASSWORD_RESET,
+                OTPVerification.is_used.is_(False),
+            )
+        )
+        .order_by(OTPVerification.created_at.desc())
+    )
+    otp_record = (await db.execute(otp_query)).scalars().first()
+
+    if not otp_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "OTP_NOT_FOUND", "message": "No active password reset request found."},
+        )
+
+    expires = otp_record.expires_at if otp_record.expires_at.tzinfo else otp_record.expires_at.replace(tzinfo=UTC)
+    if datetime.now(UTC) > expires:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "OTP_EXPIRED", "message": "Your reset OTP has expired. Please request a new one."},
+        )
+
+    if otp_record.otp_code != data.otp_code:
+        otp_record.attempt_count += 1
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_OTP", "message": "Incorrect OTP code."},
+        )
+
+    # Invalidate OTP & update user password hash
+    otp_record.is_used = True
+    user.hashed_password = get_password_hash(data.new_password)
+    await record_audit(db, "RESET_PASSWORD_SUCCESS", "user", str(user.id), user.id)
+    await db.commit()
+
+    return StandardApiResponse(
+        success=True,
+        message="Password reset successfully. You can now login with your new password.",
+    )
+
+
+# 10. Login
+@router.post("/login", response_model=StandardApiResponse[Token], dependencies=[Depends(rate_limiter(15, "rl_login"))])
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     query = (
         select(User)
@@ -495,7 +607,6 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail={"code": "EMAIL_NOT_VERIFIED", "message": "Please verify your email with OTP before logging in."},
         )
 
-    # Restricted roles approval check
     if user.role in [UserRole.UNIVERSITY, UserRole.INDUSTRY]:
         if not user.is_approved:
             req_status = user.restricted_request.status if user.restricted_request else RequestStatus.PENDING
@@ -533,7 +644,8 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         message="Login successful.",
     )
 
-# 9. Refresh Token
+
+# 11. Refresh Token
 @router.post("/refresh", response_model=StandardApiResponse[dict])
 async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(data.refresh_token)
@@ -559,14 +671,16 @@ async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(ge
         data={"access_token": new_access_token, "refresh_token": new_refresh_token, "token_type": "bearer"},
     )
 
-# 10. Logout
+
+# 12. Logout
 @router.post("/logout", response_model=StandardApiResponse[dict])
 async def logout(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await record_audit(db, "LOGOUT", "user", str(current_user.id), current_user.id)
     await db.commit()
     return StandardApiResponse(success=True, message="Logged out successfully.")
 
-# 11. Get Current User (/me)
+
+# 13. Get Current User (/me)
 @router.get("/me", response_model=StandardApiResponse[UserResponse])
 async def get_me(current_user: User = Depends(get_current_user)):
     full_name = None

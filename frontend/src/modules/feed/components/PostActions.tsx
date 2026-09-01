@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Heart, MessageSquare, Share2, Bookmark, Users } from 'lucide-react';
+import { problemsApi } from '../../../api/problems';
+import { socialApi } from '../../../api/social';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 interface PostActionsProps {
@@ -19,27 +22,49 @@ export const PostActions: React.FC<PostActionsProps> = ({
   isSaved: initialSaved = false,
   onToggleCommentSection,
 }) => {
+  const queryClient = useQueryClient();
   const [likes, setLikes] = useState(initialLikes);
   const [liked, setLiked] = useState(initialLiked);
   const [saved, setSaved] = useState(initialSaved);
+  const [isLiking, setIsLiking] = useState(false);
 
-  const handleLike = () => {
-    if (liked) {
-      setLikes((prev) => prev - 1);
-      setLiked(false);
-    } else {
-      setLikes((prev) => prev + 1);
-      setLiked(true);
-      toast('Endorsed problem severity!', { icon: '❤️' });
+  const handleLike = async () => {
+    if (isLiking) return;
+    try {
+      setIsLiking(true);
+      const res = await problemsApi.toggleEndorsement(problemId);
+      const nowEndorsed = res.endorsed;
+      setLiked(nowEndorsed);
+      setLikes((prev) => (nowEndorsed ? prev + 1 : Math.max(0, prev - 1)));
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problem-detail', problemId] });
+      toast(nowEndorsed ? 'Endorsed problem severity!' : 'Removed endorsement', { icon: '❤️' });
+    } catch {
+      toast.error('Failed to toggle endorsement.');
+    } finally {
+      setIsLiking(false);
     }
   };
 
-  const handleSave = () => {
-    setSaved(!saved);
-    toast.success(saved ? 'Removed from saved challenges' : 'Saved to your challenge library');
+  const handleSave = async () => {
+    try {
+      const result = await socialApi.toggleSaveProblem(problemId);
+      setSaved(result.saved);
+      queryClient.invalidateQueries({ queryKey: ['saved-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      toast.success(result.saved ? 'Saved to your challenge library' : 'Removed from saved challenges');
+    } catch {
+      toast.error('Failed to update saved challenges.');
+    }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    try {
+      await socialApi.shareProblem(problemId, 'link');
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+    } catch {
+      // ignore
+    }
     const url = `${window.location.origin}/problems/${problemId}`;
     navigator.clipboard.writeText(url);
     toast.success('Challenge link copied to clipboard!');
@@ -51,6 +76,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
         {/* Like Button */}
         <button
           onClick={handleLike}
+          disabled={isLiking}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all min-h-[44px] active:scale-95 ${
             liked ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/40 font-bold' : 'hover:bg-muted hover:text-foreground'
           }`}

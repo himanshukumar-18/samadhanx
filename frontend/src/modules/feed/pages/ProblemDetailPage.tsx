@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Problem } from '../../../types/problem';
+import { useQuery } from '@tanstack/react-query';
 import { ProblemStatusBadge, ImpactBadge } from '../components/ProblemStatusBadge';
 import { Card } from '../../../shared/components/ui/Card';
 import { Button } from '../../../shared/components/ui/Button';
 import { PostComments } from '../components/PostComments';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
+import { Skeleton } from '../../../shared/components/ui/Skeleton';
 import { 
   Users, 
   Share2, 
@@ -14,12 +15,73 @@ import {
   CheckCircle2,
   Inbox
 } from 'lucide-react';
+import { problemsApi } from '../../../api/problems';
+import { projectsApi } from '../../../api/projects';
+import { socialApi } from '../../../api/social';
 import toast from 'react-hot-toast';
 
-export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) => {
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(problem?.likesCount || 0);
+export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId: propId }) => {
+  const pathParts = window.location.pathname.split('/');
+  const urlId = pathParts[pathParts.length - 1];
+  const id = propId || (urlId !== 'problems' ? urlId : undefined);
+
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [teamName, setTeamName] = useState('');
+  const [solutionTitle, setSolutionTitle] = useState('');
+  const [solutionDesc, setSolutionDesc] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: problem, isLoading, refetch } = useQuery({
+    queryKey: ['problem-detail', id],
+    queryFn: () => (id ? problemsApi.getProblemDetail(id) : null),
+    enabled: !!id,
+  });
+
+  const handleLike = async () => {
+    if (!id) return;
+    try {
+      await problemsApi.toggleEndorsement(id);
+      refetch();
+      toast('Toggled endorsement!', { icon: '❤️' });
+    } catch {
+      toast.error('Failed to toggle endorsement.');
+    }
+  };
+
+  const handleFormPod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !teamName.trim() || !solutionTitle.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      await projectsApi.pickProject({
+        problem_id: id,
+        team_name: teamName,
+        title: solutionTitle,
+        description: solutionDesc || solutionTitle,
+      });
+      toast.success('Solution Pod created & problem assigned to your team!');
+      setJoinModalOpen(false);
+      setTeamName('');
+      setSolutionTitle('');
+      setSolutionDesc('');
+      refetch();
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(errorObj.response?.data?.error?.message || 'Failed to form solution pod.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 pb-12">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
+      </div>
+    );
+  }
 
   if (!problem) {
     return (
@@ -38,17 +100,6 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
     );
   }
 
-  const handleLike = () => {
-    if (liked) {
-      setLikes(likes - 1);
-      setLiked(false);
-    } else {
-      setLikes(likes + 1);
-      setLiked(true);
-      toast('Endorsed problem severity!', { icon: '❤️' });
-    }
-  };
-
   return (
     <div className="space-y-5 pb-12">
       {/* Top Back Nav */}
@@ -59,6 +110,7 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
+              if (id) socialApi.shareProblem(id, 'link').catch(() => undefined);
               navigator.clipboard.writeText(window.location.href);
               toast.success('Challenge link copied to clipboard!');
             }}
@@ -68,7 +120,7 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
             <Share2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => toast.success('Saved to your challenge library')}
+            onClick={async () => { if (!id) return; try { const result = await socialApi.toggleSaveProblem(id); toast.success(result.saved ? 'Saved to your challenge library' : 'Removed from saved challenges'); refetch(); } catch { toast.error('Failed to update saved challenges.'); } }}
             className="p-2 bg-card hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Save challenge"
           >
@@ -107,7 +159,7 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <ProblemStatusBadge status={problem.status} />
-            <ImpactBadge impact={problem.impactLevel} />
+            <ImpactBadge impact={problem.impact_level || 'high'} />
             <span className="text-xs font-semibold text-muted-foreground bg-muted px-2.5 py-0.5 rounded-md">
               {problem.category}
             </span>
@@ -119,14 +171,16 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
 
         {/* Submitter Author Info */}
         <div className="flex items-center gap-3 pt-2 border-t border-border">
-          <img src={problem.author.avatar} alt="Author" className="w-10 h-10 rounded-full object-cover border border-border" />
+          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm uppercase">
+            {problem.author?.full_name ? problem.author.full_name.slice(0, 2) : 'SX'}
+          </div>
           <div>
             <div className="text-sm font-bold text-foreground flex items-center gap-1">
-              {problem.author.name}
-              {problem.author.verified && <CheckCircle2 className="w-4 h-4 text-primary" />}
+              {problem.author?.full_name || problem.author?.email || 'Citizen Reporter'}
+              <CheckCircle2 className="w-4 h-4 text-primary" />
             </div>
             <div className="text-xs text-muted-foreground">
-              {problem.author.role} • 📍 {problem.district}, {problem.state} • Reported {problem.createdAt}
+              📍 {problem.district}, {problem.state} • Reported {new Date(problem.created_at).toLocaleDateString()}
             </div>
           </div>
         </div>
@@ -140,12 +194,10 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <button
             onClick={handleLike}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all min-h-[44px] ${
-              liked ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/40' : 'text-muted-foreground hover:bg-muted'
-            }`}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all min-h-[44px] text-muted-foreground hover:bg-muted"
           >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-rose-600' : ''}`} />
-            <span>{likes} Endorsements</span>
+            <Heart className="w-4 h-4 fill-rose-600 text-rose-600" />
+            <span>{problem.endorsements?.length || 0} Endorsements</span>
           </button>
 
           <Button
@@ -165,13 +217,13 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
         <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
           Community & Mentorship Discussion
         </h3>
-        <PostComments comments={problem.comments} />
+        <PostComments problemId={id} comments={problem.comments} />
       </Card>
 
       {/* Join Pod Modal */}
       {joinModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-md rounded-2xl p-6 border border-border shadow-2xl space-y-4 animate-fade-in text-sm">
+          <Card className="w-full max-w-md shadow-2xl border-border space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-foreground">Form Solution Pod for this Challenge</h3>
               <button onClick={() => setJoinModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
@@ -179,30 +231,39 @@ export const ProblemDetailPage: React.FC<{ problem?: Problem }> = ({ problem }) 
             <p className="text-xs text-muted-foreground leading-relaxed">
               Collaborate with solvers, request faculty mentorship, and deploy prototypes.
             </p>
-            <input
-              type="text"
-              placeholder="Team Name (e.g. CleanWater Innovators)"
-              className="w-full bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-primary focus:outline-none"
-            />
-            <textarea
-              placeholder="Outline your proposed technical approach..."
-              className="w-full h-24 bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-primary focus:outline-none"
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setJoinModalOpen(false)}>Cancel</Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="font-bold"
-                onClick={() => {
-                  setJoinModalOpen(false);
-                  toast.success('Solution Pod created!');
-                }}
-              >
-                Launch Team Pod
-              </Button>
-            </div>
-          </div>
+            <form onSubmit={handleFormPod} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Team Name (e.g. CleanWater Innovators)"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Solution Project Title"
+                value={solutionTitle}
+                onChange={(e) => setSolutionTitle(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                required
+              />
+              <textarea
+                placeholder="Outline your proposed technical methodology..."
+                value={solutionDesc}
+                onChange={(e) => setSolutionDesc(e.target.value)}
+                className="w-full h-24 bg-background border border-border rounded-xl p-3 text-sm text-foreground focus:border-primary focus:outline-none"
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" size="sm" type="button" onClick={() => setJoinModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" type="submit" isLoading={isSubmitting} className="font-bold">
+                  Launch Team Pod
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
       )}
     </div>

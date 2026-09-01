@@ -76,7 +76,10 @@ async def create_faculty_member(
     await db.commit()
 
     # Dispatch welcome email with onboarding info
-    send_welcome_email_task.delay(faculty_user.email, data.full_name, "faculty")
+    try:
+        send_welcome_email_task.delay(faculty_user.email, data.full_name, "faculty")
+    except Exception:
+        pass
 
     return StandardApiResponse(
         success=True,

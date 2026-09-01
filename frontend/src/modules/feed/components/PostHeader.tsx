@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ProblemAuthor } from '../../../types/problem';
 import { MapPin, CheckCircle2, MoreHorizontal } from 'lucide-react';
 
@@ -6,7 +6,12 @@ export const PostHeader: React.FC<{
   author: ProblemAuthor;
   createdAt: string;
   location: string;
-}> = ({ author, createdAt, location }) => {
+  isOwner?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onReport?: () => void;
+}> = ({ author, createdAt, location, isOwner, onEdit, onDelete, onReport }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-3 min-w-0">
@@ -38,9 +43,14 @@ export const PostHeader: React.FC<{
         </div>
       </div>
 
-      <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+      <div className="relative">
+      <button onClick={() => setMenuOpen((open) => !open)} className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
         <MoreHorizontal className="w-4 h-4" />
       </button>
+      {menuOpen && <div className="absolute right-0 mt-1 w-28 bg-card border border-border rounded-lg shadow-lg z-20 py-1 text-xs">
+        {isOwner ? <><button onClick={onEdit} className="block w-full text-left px-3 py-2 hover:bg-muted">Edit</button><button onClick={onDelete} className="block w-full text-left px-3 py-2 text-destructive hover:bg-muted">Delete</button></> : <button onClick={onReport} className="block w-full text-left px-3 py-2 text-destructive hover:bg-muted">Report</button>}
+      </div>}
+      </div>
     </div>
   );
 };

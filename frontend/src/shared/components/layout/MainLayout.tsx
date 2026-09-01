@@ -3,6 +3,7 @@ import { TopNavbar } from './TopNavbar';
 import { RoleSidebar } from './RoleSidebar';
 import { RightSidebar } from './RightSidebar';
 import { MobileBottomNav } from './MobileBottomNav';
+import { FloatingChat } from '../../../components/chat/FloatingChat';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children, showRightSideb
           </div>
         )}
       </div>
+
+      {/* Floating Chat Engine */}
+      <FloatingChat />
 
       {/* Mobile Drawer (Slide-Over) */}
       {mobileDrawerOpen && (

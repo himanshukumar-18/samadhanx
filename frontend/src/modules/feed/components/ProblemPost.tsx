@@ -7,9 +7,23 @@ import { AIInsightCard } from './AIInsightCard';
 import { PostActions } from './PostActions';
 import { PostComments } from './PostComments';
 import { Users, GraduationCap, Building2 } from 'lucide-react';
+import { useAuthStore } from '../../../store/authStore';
+import { problemsApi } from '../../../api/problems';
+import { socialApi } from '../../../api/social';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '../../../shared/components/ui/Button';
+import toast from 'react-hot-toast';
 
 export const ProblemPost: React.FC<{ problem: Problem }> = ({ problem }) => {
   const [showComments, setShowComments] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(problem.description);
+  const { user } = useAuthStore();
+  const client = useQueryClient();
+  const isOwner = user?.id === problem.author.id;
+  const saveEdit = async () => { try { await problemsApi.updateProblem(problem.id, { description: editText }); client.invalidateQueries({ queryKey: ['problems'] }); client.invalidateQueries({ queryKey: ['my-problems'] }); setEditing(false); toast.success('Challenge updated.'); } catch { toast.error('Failed to update challenge.'); } };
+  const deletePost = async () => { if (!window.confirm('Delete this challenge permanently?')) return; try { await problemsApi.deleteProblem(problem.id); client.invalidateQueries({ queryKey: ['problems'] }); client.invalidateQueries({ queryKey: ['my-problems'] }); toast.success('Challenge deleted.'); } catch { toast.error('Failed to delete challenge.'); } };
+  const reportPost = async () => { const reason = window.prompt('Why are you reporting this challenge?'); if (!reason) return; try { const result = await socialApi.reportProblem(problem.id, reason); toast.success(result.reported ? 'Report submitted.' : 'You have already reported this challenge.'); } catch { toast.error('Failed to submit report.'); } };
 
   return (
     <Card className="p-5 sm:p-6 border-border shadow-xs hover:border-border/80 transition-all space-y-4 rounded-2xl">
@@ -18,6 +32,8 @@ export const ProblemPost: React.FC<{ problem: Problem }> = ({ problem }) => {
         author={problem.author}
         createdAt={problem.createdAt}
         location={`${problem.district}, ${problem.state}`}
+        isOwner={isOwner}
+        onEdit={() => setEditing(true)} onDelete={deletePost} onReport={reportPost}
       />
 
       {/* 2. Title & Status Badges */}
@@ -38,9 +54,7 @@ export const ProblemPost: React.FC<{ problem: Problem }> = ({ problem }) => {
       </div>
 
       {/* 3. Description Content */}
-      <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">
-        {problem.description}
-      </p>
+      <p className="text-sm sm:text-base text-foreground/85 leading-relaxed">{problem.description}</p>
 
       {/* 4. Problem Media Image (if any) */}
       {problem.images && problem.images.length > 0 && (
@@ -108,7 +122,8 @@ export const ProblemPost: React.FC<{ problem: Problem }> = ({ problem }) => {
       />
 
       {/* 9. Inline Comments Thread */}
-      {showComments && <PostComments comments={problem.comments} />}
+      {showComments && <PostComments problemId={problem.id} comments={problem.comments} />}
+      {editing && <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><Card className="w-full max-w-lg space-y-3"><h3 className="font-bold">Edit challenge</h3><textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="w-full min-h-28 p-3 bg-background border border-border rounded-xl"/><div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button><Button size="sm" onClick={saveEdit}>Save</Button></div></Card></div>}
     </Card>
   );
 };

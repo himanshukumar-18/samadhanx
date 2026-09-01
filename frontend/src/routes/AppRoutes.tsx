@@ -11,6 +11,8 @@ import { RequestAccessPage } from '../modules/auth/pages/RequestAccessPage';
 import { VerifyOtpPage } from '../modules/auth/pages/VerifyOtpPage';
 import { AdminDashboard } from '../modules/admin/pages/AdminDashboard';
 import { UniversityFacultyPage } from '../modules/admin/pages/UniversityFacultyPage';
+import { SavedProblemsPage } from '../modules/feed/pages/SavedProblemsPage';
+import { NotificationsPage } from '../modules/feed/pages/NotificationsPage';
 
 export const AppRoutes: React.FC = () => {
   const path = window.location.pathname;
@@ -38,6 +40,9 @@ export const AppRoutes: React.FC = () => {
       </MainLayout>
     );
   }
+
+  if (path === '/saved') return <MainLayout><SavedProblemsPage /></MainLayout>;
+  if (path === '/notifications') return <MainLayout><NotificationsPage /></MainLayout>;
 
   // Problem Detail Page
   if (path.startsWith('/problems/')) {

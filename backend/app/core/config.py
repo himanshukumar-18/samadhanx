@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     MAX_REQUEST_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
 
+    # Media is persisted only after a successful Cloudinary upload.
+    CLOUDINARY_URL: str | None = None
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:

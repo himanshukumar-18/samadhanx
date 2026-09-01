@@ -83,6 +83,23 @@ async def get_current_user(
 
     return user
 
+
+async def get_optional_current_user(
+    token: Annotated[str | None, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User | None:
+    """Resolve an authenticated user when present without making public feeds fail."""
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access" or not payload.get("sub"):
+        return None
+    try:
+        user_id = uuid.UUID(payload["sub"])
+    except ValueError:
+        return None
+    return (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:

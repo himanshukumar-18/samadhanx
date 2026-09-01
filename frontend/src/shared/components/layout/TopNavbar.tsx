@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
 import { ThemeSelector } from '../theme/ThemeSelector';
 import { Button } from '../ui/Button';
@@ -14,6 +15,7 @@ import {
   ShieldCheck,
   ChevronDown
 } from 'lucide-react';
+import { notificationsApi } from '../../../api/notifications';
 
 export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileSidebarOpen?: boolean }> = ({
   onToggleMobileSidebar,
@@ -24,6 +26,16 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const { data: notifications } = useQuery({
+    queryKey: ['unread-notifications-count'],
+    queryFn: () => notificationsApi.listNotifications(10),
+    enabled: isAuthenticated,
+  });
+
+  const unreadCount = Array.isArray(notifications)
+    ? notifications.filter((n) => !n.is_read).length
+    : 0;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -56,7 +68,15 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
 
         {/* Center: Desktop Global Search Bar */}
         <div className="flex-1 max-w-lg hidden md:block px-2">
-          <div className="relative flex items-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery.trim()) {
+                window.location.href = `/explore?search=${encodeURIComponent(searchQuery)}`;
+              }
+            }}
+            className="relative flex items-center"
+          >
             <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
@@ -68,7 +88,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
             <kbd className="absolute right-3 hidden lg:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-mono text-muted-foreground bg-background/80 border border-border rounded">
               ⌘K
             </kbd>
-          </div>
+          </form>
         </div>
 
         {/* Right: Actions, Theme, Notifications & User Menu */}
@@ -86,14 +106,20 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
           <ThemeSelector />
 
           {/* Notifications Bell */}
-          <a
-            href="/notifications"
-            className="relative p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-destructive rounded-full ring-2 ring-card" />
-          </a>
+          {isAuthenticated && (
+            <a
+              href="/notifications"
+              className="relative p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 w-4 h-4 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center border border-card">
+                  {unreadCount}
+                </span>
+              )}
+            </a>
+          )}
 
           {/* Real User Profile / Auth Actions */}
           {isAuthenticated && user ? (
@@ -178,7 +204,15 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
       {/* Mobile Expandable Search Bar */}
       {mobileSearchOpen && (
         <div className="md:hidden px-4 pb-3 pt-1 border-t border-border bg-card animate-fade-in">
-          <div className="relative flex items-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery.trim()) {
+                window.location.href = `/explore?search=${encodeURIComponent(searchQuery)}`;
+              }
+            }}
+            className="relative flex items-center"
+          >
             <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
@@ -188,7 +222,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
               autoFocus
               className="w-full bg-muted/80 rounded-full pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:outline-none"
             />
-          </div>
+          </form>
         </div>
       )}
     </header>
