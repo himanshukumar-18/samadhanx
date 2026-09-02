@@ -1,8 +1,12 @@
 import React from 'react';
 import { AIInsight } from '../../../types/problem';
 import { Sparkles, Users, Cpu, ArrowRight } from 'lucide-react';
+import { useAuthStore } from '../../../store/authStore';
 
 export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> = ({ insight, problemId }) => {
+  const { user } = useAuthStore();
+  const isCitizenRole = !user || (user.role as string) === 'citizen' || (user.role as string) === 'community';
+
   return (
     <div className="my-3 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2.5">
       <div className="flex items-center justify-between">
@@ -37,17 +41,31 @@ export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> 
       </div>
 
       {/* Action Footer */}
-      <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
-          <Users className="w-3.5 h-3.5 text-primary" /> {insight.matchedPeopleCount} innovators match this challenge
-        </span>
-        <a
-          href={`/problems/${problemId}`}
-          className="text-primary font-bold text-xs hover:underline flex items-center gap-0.5"
-        >
-          Form Team <ArrowRight className="w-3 h-3" />
-        </a>
-      </div>
+      {!isCitizenRole ? (
+        <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
+            <Users className="w-3.5 h-3.5 text-primary" /> {insight.matchedPeopleCount} innovators match this challenge
+          </span>
+          <a
+            href={`/problems/${problemId}`}
+            className="text-primary font-bold text-xs hover:underline flex items-center gap-0.5"
+          >
+            Form Team <ArrowRight className="w-3 h-3" />
+          </a>
+        </div>
+      ) : (
+        <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
+            <Users className="w-3.5 h-3.5 text-primary" /> {insight.matchedPeopleCount} solution pods matching
+          </span>
+          <a
+            href={`/problems/${problemId}`}
+            className="text-primary font-bold text-xs hover:underline flex items-center gap-0.5"
+          >
+            View Details <ArrowRight className="w-3 h-3" />
+          </a>
+        </div>
+      )}
     </div>
   );
 };

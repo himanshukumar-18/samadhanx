@@ -19,8 +19,8 @@ class UserProfileDetail(BaseModel):
     )
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     headline: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    cover_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cover_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)

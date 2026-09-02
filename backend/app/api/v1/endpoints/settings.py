@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_active_user, get_db
@@ -29,3 +29,13 @@ async def update_my_settings(
     repo = SettingsRepository(db)
     update_dict = data.model_dump(exclude_unset=True)
     return await repo.update_settings(current_user.id, update_dict)
+
+
+@router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_my_account(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await db.delete(current_user)
+    await db.commit()
+    return {"success": True, "message": "Account successfully deleted."}

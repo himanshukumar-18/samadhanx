@@ -18,6 +18,7 @@ from app.core.security import (
 )
 from app.models.audit_log import AuditLog
 from app.models.enums import OrgType, OTPPurpose, RequestStatus, UserRole
+from app.models.institution_master import InstitutionMaster
 from app.models.otp import OTPVerification
 from app.models.profiles import (
     CitizenProfile,
@@ -144,15 +145,51 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
             detail={"code": "EMAIL_EXISTS", "message": "An account with this email already exists."},
         )
 
-    univ_query = select(UniversityProfile).where(
-        and_(UniversityProfile.id == data.university_id, UniversityProfile.is_approved.is_(True))
-    )
-    univ_result = await db.execute(univ_query)
-    university = univ_result.scalar_one_or_none()
-    if not university:
+    inst_master = None
+    target_univ_id = None
+    target_inst_id = None
+
+    if data.institution_id:
+        inst_query = select(InstitutionMaster).where(
+            and_(InstitutionMaster.id == data.institution_id, InstitutionMaster.verification_status == "verified", InstitutionMaster.is_active.is_(True))
+        )
+        inst_master = (await db.execute(inst_query)).scalar_one_or_none()
+        if not inst_master:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INSTITUTION", "message": "Selected institution is unverified, suspended, or does not exist."},
+            )
+        target_inst_id = inst_master.id
+
+        # Check if an approved university profile exists for this institution
+        univ_profile_res = await db.execute(select(UniversityProfile).where(UniversityProfile.institution_id == inst_master.id))
+        univ_prof = univ_profile_res.scalar_one_or_none()
+        if univ_prof:
+            target_univ_id = univ_prof.id
+        else:
+            # Fallback to any approved university or first university profile
+            any_univ = (await db.execute(select(UniversityProfile).where(UniversityProfile.is_approved.is_(True)))).scalars().first()
+            if any_univ:
+                target_univ_id = any_univ.id
+
+    if not target_univ_id and data.university_id:
+        univ_query = select(UniversityProfile).where(
+            and_(UniversityProfile.id == data.university_id, UniversityProfile.is_approved.is_(True))
+        )
+        univ_result = await db.execute(univ_query)
+        university = univ_result.scalar_one_or_none()
+        if not university:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_UNIVERSITY", "message": "Selected university is not approved or does not exist."},
+            )
+        target_univ_id = university.id
+        target_inst_id = university.institution_id
+
+    if not target_univ_id and not target_inst_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "INVALID_UNIVERSITY", "message": "Selected university is not approved or does not exist."},
+            detail={"code": "INVALID_INSTITUTION", "message": "Please select a valid, verified university or institution."},
         )
 
     user = User(
@@ -169,7 +206,8 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
     profile = StudentProfile(
         user_id=user.id,
         full_name=data.full_name,
-        university_id=university.id,
+        university_id=target_univ_id,
+        institution_id=target_inst_id,
         enrollment_number=data.enrollment_number,
         department=data.department,
         graduation_year=data.graduation_year,
@@ -185,7 +223,8 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
         expires_at=datetime.now(UTC) + timedelta(minutes=10),
     )
     db.add(otp_record)
-    await record_audit(db, "REGISTER_STUDENT", "user", str(user.id), user.id, {"email": user.email, "university": university.university_name})
+    inst_label = inst_master.name if inst_master else "Institution"
+    await record_audit(db, "REGISTER_STUDENT", "user", str(user.id), user.id, {"email": user.email, "institution": inst_label})
     await db.commit()
 
     try:

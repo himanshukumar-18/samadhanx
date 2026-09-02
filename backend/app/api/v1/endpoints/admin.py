@@ -19,6 +19,7 @@ from app.schemas.admin import (
 from app.schemas.common import StandardApiResponse
 from app.schemas.problem import ProblemModerationUpdate, ProblemResponse
 from app.services.problem_service import ProblemService
+from app.api.v1.endpoints.public import invalidate_public_universities_cache
 from app.tasks.email import send_approval_email_task, send_rejection_email_task
 
 router = APIRouter(prefix="/admin", tags=["Admin Operations"])
@@ -110,6 +111,7 @@ async def approve_request(
     )
     db.add(audit)
     await db.commit()
+    invalidate_public_universities_cache()
 
     # Dispatch Celery Approval Email
     try:

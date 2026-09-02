@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     # Media is persisted only after a successful Cloudinary upload.
     CLOUDINARY_URL: str | None = None
 
+    # SMTP / Email Service Settings
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_TLS: bool = True
+    EMAILS_FROM_EMAIL: str = "noreply@samadhanx.in"
+    EMAILS_FROM_NAME: str = "SamadhanX Community Platform"
+    EMAILS_ENABLED: bool = False
+
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:

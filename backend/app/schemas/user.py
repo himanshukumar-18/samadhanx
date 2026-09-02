@@ -5,6 +5,16 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.models.enums import UserRole
 
 
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    email: str
+    role: UserRole
+    is_verified: bool
+    is_active: bool
+    is_approved: bool
+
+
 class CitizenRegister(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
@@ -15,16 +25,19 @@ class CitizenRegister(BaseModel):
     district: str = Field(..., min_length=2, max_length=100)
     state: str = Field(..., min_length=2, max_length=100)
 
+
 class StudentRegister(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: str = Field(..., min_length=2, max_length=255)
-    university_id: uuid.UUID
+    university_id: uuid.UUID | None = None
+    institution_id: uuid.UUID | None = None
     enrollment_number: str | None = None
     department: str = Field(..., min_length=2, max_length=150)
     graduation_year: int | None = None
     skills: list[str] | None = Field(default_factory=list)
+
 
 class UniversityRequestRegister(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -38,6 +51,7 @@ class UniversityRequestRegister(BaseModel):
     official_email: EmailStr
     website: str | None = None
 
+
 class IndustryRequestRegister(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
@@ -49,6 +63,7 @@ class IndustryRequestRegister(BaseModel):
     designation: str = Field(..., min_length=2, max_length=100)
     focus_sectors: list[str] | None = Field(default_factory=list)
 
+
 class FacultyCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     email: EmailStr
@@ -58,19 +73,10 @@ class FacultyCreate(BaseModel):
     designation: str = Field(..., min_length=2, max_length=100)
     research_areas: list[str] | None = Field(default_factory=list)
 
+
 class UniversityListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     university_name: str
     state: str
     district: str
-    is_approved: bool
-
-class UserResponse(BaseModel):
-    id: uuid.UUID
-    email: str
-    role: UserRole
-    is_verified: bool
-    is_approved: bool
-    is_active: bool
-    full_name: str | None = None
-    organization_name: str | None = None

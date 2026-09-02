@@ -1,5 +1,13 @@
 import { apiClient } from './client';
 
+export interface CitizenProfileStats {
+  problems_submitted: number;
+  problems_approved: number;
+  problems_pending: number;
+  problems_rejected: number;
+  problems_solved: number;
+}
+
 export interface UserProfileDetail {
   user_id: string;
   email: string;
@@ -9,8 +17,10 @@ export interface UserProfileDetail {
   bio?: string | null;
   headline?: string | null;
   avatar_url?: string | null;
+  profile_picture_url?: string | null;
   cover_url?: string | null;
   website?: string | null;
+  website_url?: string | null;
   github_url?: string | null;
   linkedin_url?: string | null;
   skills: string[];
@@ -21,6 +31,14 @@ export interface UserProfileDetail {
   is_following: boolean;
   is_verified: boolean;
   created_at: string;
+  stats?: CitizenProfileStats | null;
+}
+
+export interface AccountSettingsData {
+  email_notifications: boolean;
+  push_notifications: boolean;
+  public_profile: boolean;
+  show_contact: boolean;
 }
 
 export const profileApi = {
@@ -52,13 +70,18 @@ export const profileApi = {
     return res.data;
   },
 
-  getMySettings: async () => {
+  getMySettings: async (): Promise<AccountSettingsData> => {
     const res = await apiClient.get('/settings/me');
     return res.data;
   },
 
-  updateMySettings: async (data: any) => {
+  updateMySettings: async (data: Partial<AccountSettingsData>): Promise<AccountSettingsData> => {
     const res = await apiClient.patch('/settings/me', data);
+    return res.data;
+  },
+
+  deleteMyAccount: async (): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient.delete('/settings/me');
     return res.data;
   },
 };

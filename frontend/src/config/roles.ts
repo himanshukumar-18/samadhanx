@@ -9,8 +9,8 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       { id: 'home', label: 'Home Feed', path: '/', iconName: 'Home' },
       { id: 'explore', label: 'Explore Problems', path: '/explore', iconName: 'Compass' },
       { id: 'nearby', label: 'Nearby Issues', path: '/nearby', iconName: 'MapPin' },
-      { id: 'saved', label: 'Saved Challenges', path: '/saved', iconName: 'Bookmark' },
-      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell', badge: '3' },
+      { id: 'saved', label: 'Saved Problems', path: '/saved', iconName: 'Bookmark' },
+      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell' },
       { id: 'profile', label: 'My Community Profile', path: '/profile', iconName: 'User' },
     ],
     mobileBottomNav: [
@@ -31,8 +31,8 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       { id: 'home', label: 'Home Feed', path: '/', iconName: 'Home' },
       { id: 'explore', label: 'Explore Problems', path: '/explore', iconName: 'Compass' },
       { id: 'nearby', label: 'Nearby Issues', path: '/nearby', iconName: 'MapPin' },
-      { id: 'saved', label: 'Saved Challenges', path: '/saved', iconName: 'Bookmark' },
-      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell', badge: '3' },
+      { id: 'saved', label: 'Saved Problems', path: '/saved', iconName: 'Bookmark' },
+      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell' },
       { id: 'profile', label: 'My Community Profile', path: '/profile', iconName: 'User' },
     ],
     mobileBottomNav: [
@@ -53,10 +53,10 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
       { id: 'home', label: 'Home Feed', path: '/', iconName: 'Home' },
       { id: 'explore', label: 'Discover Challenges', path: '/explore', iconName: 'Compass' },
       { id: 'my-problems', label: 'My Problem Pods', path: '/my-problems', iconName: 'Lightbulb' },
-      { id: 'my-teams', label: 'My Teams', path: '/teams', iconName: 'Users', badge: '2' },
+      { id: 'my-teams', label: 'My Teams', path: '/teams', iconName: 'Users' },
       { id: 'projects', label: 'Projects & Prototypes', path: '/projects', iconName: 'FolderGit2' },
       { id: 'discover-people', label: 'Find Teammates', path: '/people', iconName: 'UserPlus' },
-      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell', badge: '5' },
+      { id: 'notifications', label: 'Notifications', path: '/notifications', iconName: 'Bell' },
       { id: 'profile', label: 'Student Portfolio', path: '/profile', iconName: 'User' },
     ],
     mobileBottomNav: [
@@ -76,7 +76,7 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     sidebarNav: [
       { id: 'home', label: 'Home Feed', path: '/', iconName: 'Home' },
       { id: 'recommended', label: 'Recommended Problems', path: '/explore', iconName: 'Sparkles' },
-      { id: 'mentoring', label: 'My Mentoring Pods', path: '/mentoring', iconName: 'GraduationCap', badge: '4' },
+      { id: 'mentoring', label: 'My Mentoring Pods', path: '/mentoring', iconName: 'GraduationCap' },
       { id: 'student-teams', label: 'Supervised Teams', path: '/teams', iconName: 'Users' },
       { id: 'research', label: 'Research & Grants', path: '/research', iconName: 'BookOpen' },
       { id: 'impact', label: 'Academic Impact', path: '/impact', iconName: 'TrendingUp' },
@@ -208,7 +208,7 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
 };
 
 export const getRoleConfig = (role: string | null | undefined): RoleConfig => {
-  if (!role) return ROLE_CONFIGS.student;
+  if (!role) return ROLE_CONFIGS.citizen;
   const normalized = role.toLowerCase() as UserRole;
-  return ROLE_CONFIGS[normalized] || ROLE_CONFIGS.student;
+  return ROLE_CONFIGS[normalized] || ROLE_CONFIGS.citizen;
 };

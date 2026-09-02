@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Comment } from '../../../types/problem';
 import { useAuthStore } from '../../../store/authStore';
+import { profileApi } from '../../../api/profile';
 import { problemsApi } from '../../../api/problems';
+import { UserAvatar } from '../../../shared/components/ui/UserAvatar';
 import { Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -10,15 +12,26 @@ export const PostComments: React.FC<{ problemId?: string; comments?: Comment[] }
   problemId,
   comments: initialComments = [],
 }) => {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
+
+  const { data: myProfile } = useQuery({
+    queryKey: ['my-profile-detail'],
+    queryFn: profileApi.getMyProfile,
+    enabled: isAuthenticated,
+  });
+
   const { data: apiComments = [], isLoading } = useQuery({
     queryKey: ['problem-comments', problemId],
     queryFn: () => (problemId ? problemsApi.listComments(problemId) : []),
     enabled: Boolean(problemId),
   });
+
   const [text, setText] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+
+  const currentUserAvatar = myProfile?.avatar_url || myProfile?.profile_picture_url;
+  const currentUserName = myProfile?.full_name || user?.full_name || user?.email;
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +45,8 @@ export const PostComments: React.FC<{ problemId?: string; comments?: Comment[] }
           id: res.id,
           author: {
             id: user?.id || 'usr-current',
-            name: user?.full_name || user?.email || 'You',
-            avatar: (user as any)?.avatar_url || '',
+            name: currentUserName || 'You',
+            avatar: currentUserAvatar || '',
             role: user?.role || 'Citizen',
             location: 'India',
             verified: true,
@@ -86,54 +99,50 @@ export const PostComments: React.FC<{ problemId?: string; comments?: Comment[] }
 
   return (
     <div className="pt-3 border-t border-border space-y-3">
-      {/* Input Box */}
+      {/* Input Box with User Profile Avatar */}
       <form onSubmit={handleAddComment} className="flex gap-2 items-center">
-        <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center uppercase flex-shrink-0">
-          {user?.email ? user.email.slice(0, 2) : 'SX'}
+        <div className="p-0.5 rounded-full ring-2 ring-primary/30 flex-shrink-0">
+          <UserAvatar src={currentUserAvatar} name={currentUserName} size="sm" />
         </div>
         <input
           type="text"
           placeholder="Propose an approach or ask a question..."
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="flex-1 bg-muted/60 hover:bg-muted focus:bg-background rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground border border-transparent focus:border-primary focus:outline-none transition-all"
+          className="flex-1 bg-muted/60 hover:bg-muted focus:bg-background rounded-full px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground border border-transparent focus:border-primary focus:outline-none transition-all"
         />
         <button
           type="submit"
           disabled={!text.trim() || isPosting}
-          className="p-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-hover transition-colors"
+          className="p-2 rounded-full bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-hover transition-colors shadow-2xs"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
       </form>
 
-      {/* Comments List */}
+      {/* Comments List with Author Avatars */}
       <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
         {isLoading && <p className="text-xs text-muted-foreground">Loading discussion…</p>}
         {!isLoading && formattedComments.length === 0 && (
           <p className="text-xs text-muted-foreground italic py-1">No comments yet. Be the first to start the discussion!</p>
         )}
         {formattedComments.map((c: Comment) => (
-          <div key={c.id} className="flex items-start gap-2.5 text-xs bg-muted/40 p-2.5 rounded-lg">
+          <div key={c.id} className="flex items-start gap-2.5 text-xs bg-muted/40 p-2.5 rounded-xl border border-border/40">
             <a href={c.author.id === user?.id ? '/profile' : `/profile/user/${c.author.id}`} className="flex-shrink-0 mt-0.5">
-              {c.author.avatar ? (
-                <img src={c.author.avatar} alt={c.author.name} className="w-6 h-6 rounded-full object-cover border border-border" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary font-bold text-[10px] flex items-center justify-center uppercase">
-                  {c.author.name ? c.author.name.slice(0, 2) : 'SX'}
-                </div>
-              )}
+              <div className="p-0.5 rounded-full ring-2 ring-primary/30">
+                <UserAvatar src={c.author.avatar} name={c.author.name} size="xs" />
+              </div>
             </a>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-1 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <a
                     href={c.author.id === user?.id ? '/profile' : `/profile/user/${c.author.id}`}
-                    className="font-bold text-foreground hover:text-primary transition-colors truncate"
+                    className="inline-flex items-center px-2 py-0.5 rounded-full border border-border bg-card text-[11px] font-extrabold text-foreground hover:text-primary transition-colors truncate"
                   >
                     {c.author.name}
                   </a>
-                  <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded capitalize">
+                  <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full capitalize">
                     {c.author.role}
                   </span>
                 </div>

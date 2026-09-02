@@ -1,9 +1,11 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.problem import Problem
+from app.models.profiles import CitizenProfile
 from app.models.user import User
 from app.models.user_profile import UserProfileDetail
 
@@ -33,11 +35,56 @@ class ProfileRepository:
     async def update_detail(self, user_id: uuid.UUID, update_dict: dict) -> UserProfileDetail:
         detail = await self.get_or_create_detail(user_id)
         for k, v in update_dict.items():
-            if v is not None:
+            if v is not None and hasattr(detail, k):
                 setattr(detail, k, v)
         await self.db.flush()
         await self.db.refresh(detail)
         return detail
+
+    async def get_or_create_citizen_profile(self, user_id: uuid.UUID, default_name: str = "") -> CitizenProfile:
+        q = select(CitizenProfile).where(CitizenProfile.user_id == user_id)
+        res = await self.db.execute(q)
+        cp = res.scalar_one_or_none()
+        if not cp:
+            cp = CitizenProfile(
+                user_id=user_id,
+                full_name=default_name or "Citizen Solver",
+                location="India",
+                district="Default District",
+                state="Default State",
+            )
+            self.db.add(cp)
+            await self.db.flush()
+            await self.db.refresh(cp)
+        return cp
+
+    async def update_citizen_profile(self, user_id: uuid.UUID, update_dict: dict) -> CitizenProfile:
+        cp = await self.get_or_create_citizen_profile(user_id)
+        for k, v in update_dict.items():
+            if hasattr(cp, k):
+                setattr(cp, k, v)
+        await self.db.flush()
+        await self.db.refresh(cp)
+        return cp
+
+    async def get_citizen_problem_stats(self, user_id: uuid.UUID) -> dict[str, int]:
+        q = select(Problem.status, func.count(Problem.id)).where(Problem.created_by_id == user_id).group_by(Problem.status)
+        res = await self.db.execute(q)
+        counts = {str(r[0]): r[1] for r in res.all()}
+
+        submitted = sum(counts.values())
+        pending = counts.get("submitted", 0) + counts.get("under_review", 0)
+        approved = counts.get("verified", 0) + counts.get("in_progress", 0) + counts.get("pilot", 0) + counts.get("solution_submitted", 0)
+        rejected = counts.get("rejected", 0)
+        solved = counts.get("solved", 0)
+
+        return {
+            "problems_submitted": submitted,
+            "problems_approved": approved,
+            "problems_pending": pending,
+            "problems_rejected": rejected,
+            "problems_solved": solved,
+        }
 
     async def get_user_with_profiles(self, user_id: uuid.UUID) -> User | None:
         q = (

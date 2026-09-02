@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
+import { useLanguageStore } from '../../../store/languageStore';
+import { getTranslation } from '../../../lib/translations';
+import { profileApi } from '../../../api/profile';
 import { ThemeSelector } from '../theme/ThemeSelector';
 import { Button } from '../ui/Button';
 import { Logo } from '../Logo';
+import { UserAvatar } from '../ui/UserAvatar';
 import { 
   Search, 
   Bell, 
@@ -13,7 +17,8 @@ import {
   User as UserIcon,
   Settings,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Languages
 } from 'lucide-react';
 import { notificationsApi } from '../../../api/notifications';
 
@@ -22,10 +27,17 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
   isMobileSidebarOpen,
 }) => {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { language, toggleLanguage } = useLanguageStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const { data: myProfile } = useQuery({
+    queryKey: ['my-profile-detail'],
+    queryFn: profileApi.getMyProfile,
+    enabled: isAuthenticated,
+  });
 
   const { data: notifications } = useQuery({
     queryKey: ['unread-notifications-count'],
@@ -46,6 +58,11 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const t = (key: string) => getTranslation(language, key);
+
+  const avatarUrl = myProfile?.avatar_url || myProfile?.profile_picture_url;
+  const displayName = myProfile?.full_name || user?.full_name || user?.email;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-card/95 backdrop-blur-md transition-colors">
@@ -80,18 +97,18 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
             <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
-              placeholder="Search problems, skills, locations..."
+              placeholder={t('search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-muted/70 hover:bg-muted focus:bg-card rounded-full pl-10 pr-12 py-2 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all h-10"
+              className="w-full bg-muted/50 hover:bg-muted/80 focus:bg-muted/90 rounded-full pl-10 pr-12 py-2 text-sm text-foreground placeholder:text-muted-foreground border border-border/80 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all h-10"
             />
-            <kbd className="absolute right-3 hidden lg:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-mono text-muted-foreground bg-background/80 border border-border rounded">
+            <kbd className="absolute right-3 hidden lg:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-mono text-muted-foreground bg-muted/70 border border-border/80 rounded">
               ⌘K
             </kbd>
           </form>
         </div>
 
-        {/* Right: Actions, Theme, Notifications & User Menu */}
+        {/* Right: Actions, Theme, Language & User Menu */}
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {/* Mobile Search Toggle Icon */}
           <button
@@ -100,6 +117,16 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
             aria-label="Search challenges"
           >
             <Search className="w-5 h-5" />
+          </button>
+
+          {/* Language Switcher (EN / हिंदी) */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-muted/50 hover:bg-muted text-xs font-extrabold text-foreground transition-all min-h-[38px] shadow-2xs"
+            title="Switch Language / भाषा बदलें"
+          >
+            <Languages className="w-4 h-4 text-primary flex-shrink-0" />
+            <span className="uppercase">{language === 'en' ? 'EN' : 'हिंदी'}</span>
           </button>
 
           {/* Theme Selector */}
@@ -128,8 +155,8 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary/40 transition-all focus:outline-none min-h-[44px] min-w-[44px]"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-xs uppercase border border-primary/30">
-                  {user.email ? user.email.slice(0, 2) : 'SX'}
+                <div className="p-0.5 rounded-full ring-2 ring-primary/40">
+                  <UserAvatar src={avatarUrl} name={displayName} size="md" />
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline" />
               </button>
@@ -137,7 +164,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 py-2 bg-card rounded-2xl shadow-2xl border border-border z-50 animate-fade-in text-sm">
                   <div className="px-4 py-2.5 border-b border-border">
-                    <p className="font-bold text-foreground truncate">{user.email}</p>
+                    <p className="font-bold text-foreground truncate">{displayName}</p>
                     <p className="text-xs text-primary font-semibold uppercase tracking-wider capitalize mt-0.5">
                       Role: {user.role}
                     </p>
@@ -149,7 +176,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
                     className="flex items-center gap-2.5 px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
                   >
                     <UserIcon className="w-4 h-4 text-muted-foreground" />
-                    <span>Your Profile</span>
+                    <span>{t('nav_your_profile')}</span>
                   </a>
 
                   {user.role === 'admin' && (
@@ -159,7 +186,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
                       className="flex items-center gap-2.5 px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
                     >
                       <ShieldCheck className="w-4 h-4 text-primary" />
-                      <span>Admin Portal</span>
+                      <span>{t('nav_admin_portal')}</span>
                     </a>
                   )}
 
@@ -169,7 +196,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
                     className="flex items-center gap-2.5 px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
                   >
                     <Settings className="w-4 h-4 text-muted-foreground" />
-                    <span>Account Settings</span>
+                    <span>{t('nav_account_settings')}</span>
                   </a>
 
                   <div className="pt-1 mt-1 border-t border-border">
@@ -182,7 +209,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
                       className="w-full flex items-center gap-2.5 px-4 py-2.5 text-destructive hover:bg-destructive/10 transition-colors text-left"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
+                      <span>{t('nav_sign_out')}</span>
                     </button>
                   </div>
                 </div>
@@ -191,10 +218,10 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="hidden sm:inline-flex min-h-[38px] px-3.5 text-sm font-semibold" onClick={() => (window.location.href = '/login')}>
-                Sign In
+                {t('nav_sign_in')}
               </Button>
               <Button variant="primary" size="sm" className="min-h-[38px] px-4 text-sm font-bold shadow-xs" onClick={() => (window.location.href = '/register')}>
-                Sign Up
+                {t('nav_sign_up')}
               </Button>
             </div>
           )}
@@ -216,11 +243,11 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
             <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
-              placeholder="Search problems, skills..."
+              placeholder={t('search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
-              className="w-full bg-muted/80 rounded-full pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:outline-none"
+              className="w-full bg-muted/60 rounded-full pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border focus:border-primary focus:outline-none"
             />
           </form>
         </div>

@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../lib/apiClient';
+import { useApprovedUniversities } from '../../../hooks/useApprovedUniversities';
+import { useInstitutionSearch } from '../../../hooks/useInstitutionSearch';
 import { Button } from '../../../shared/components/ui/Button';
 import { Input } from '../../../shared/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
 import { Logo } from '../../../shared/components/Logo';
-import { Users, GraduationCap, ArrowRight, AlertCircle } from 'lucide-react';
+import { Users, GraduationCap, ArrowRight, AlertCircle, RefreshCw, Search, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-interface UniversityItem {
-  id: string;
-  university_name: string;
-  state: string;
-  district: string;
-}
 
 export const RegisterPage: React.FC = () => {
   const [roleType, setRoleType] = useState<'citizen' | 'student'>('citizen');
@@ -25,8 +20,11 @@ export const RegisterPage: React.FC = () => {
   const [district, setDistrict] = useState('');
   const [state, setState] = useState('');
 
-  const [universities, setUniversities] = useState<UniversityItem[]>([]);
+  const [institutionQuery, setInstitutionQuery] = useState('');
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState('');
+  const [selectedInstitutionName, setSelectedInstitutionName] = useState('');
   const [selectedUnivId, setSelectedUnivId] = useState('');
+
   const [enrollmentNo, setEnrollmentNo] = useState('');
   const [department, setDepartment] = useState('');
   const [gradYear, setGradYear] = useState('2026');
@@ -35,18 +33,24 @@ export const RegisterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // TanStack Query for debounced institution master search
+  const {
+    data: instSearchData,
+    isLoading: loadingInsts,
+    isError: instsError,
+    refetch: refetchInsts,
+  } = useInstitutionSearch(institutionQuery, roleType === 'student');
+
+  // Legacy approved universities fallback list
+  const { data: approvedUniversities = [] } = useApprovedUniversities(roleType === 'student');
+
+  const masterInstitutions = instSearchData?.data || [];
+
   useEffect(() => {
-    if (roleType === 'student') {
-      apiClient.get('/auth/universities')
-        .then((res) => {
-          setUniversities(res.data?.data || []);
-          if (res.data?.data?.length > 0) {
-            setSelectedUnivId(res.data.data[0].id);
-          }
-        })
-        .catch((err) => console.error('Failed to load universities', err));
+    if (approvedUniversities.length > 0 && !selectedUnivId) {
+      setSelectedUnivId(approvedUniversities[0].id);
     }
-  }, [roleType]);
+  }, [approvedUniversities, selectedUnivId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +69,8 @@ export const RegisterPage: React.FC = () => {
           state,
         });
       } else {
-        if (!selectedUnivId) {
-          setErrorMsg('Please select an approved university.');
+        if (!selectedInstitutionId && !selectedUnivId) {
+          setErrorMsg('Please select a verified university or institution.');
           setIsLoading(false);
           return;
         }
@@ -74,7 +78,8 @@ export const RegisterPage: React.FC = () => {
           email,
           password,
           full_name: fullName,
-          university_id: selectedUnivId,
+          institution_id: selectedInstitutionId || undefined,
+          university_id: selectedUnivId || undefined,
           enrollment_number: enrollmentNo || undefined,
           department,
           graduation_year: parseInt(gradYear, 10) || 2026,
@@ -205,26 +210,103 @@ export const RegisterPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4 pt-2 border-t border-border">
+                {/* Searchable Combobox for UGC/AISHE Master Institutions */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Affiliated University / College (Approved Only)
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary/40 focus:border-primary focus:outline-none min-h-[44px]"
-                    value={selectedUnivId}
-                    onChange={(e) => setSelectedUnivId(e.target.value)}
-                    required
-                  >
-                    {universities.length === 0 ? (
-                      <option value="">No approved universities available</option>
-                    ) : (
-                      universities.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.university_name} ({u.state})
-                        </option>
-                      ))
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Search Affiliated Institution / College (Verified UGC/AISHE Master)
+                    </label>
+                    {instsError && (
+                      <button
+                        type="button"
+                        onClick={() => refetchInsts()}
+                        className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Retry
+                      </button>
                     )}
-                  </select>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Type university name or AISHE code (e.g., IIT Delhi)..."
+                      value={institutionQuery}
+                      onChange={(e) => {
+                        setInstitutionQuery(e.target.value);
+                        setSelectedInstitutionId('');
+                        setSelectedInstitutionName('');
+                      }}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground focus:ring-2 focus:ring-primary/40 focus:border-primary focus:outline-none min-h-[44px]"
+                    />
+                  </div>
+
+                  {selectedInstitutionId && (
+                    <div className="mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                      <span>Verified Selected: {selectedInstitutionName}</span>
+                    </div>
+                  )}
+
+                  {/* Dropdown Options List */}
+                  {!selectedInstitutionId && (
+                    <div className="mt-2 max-h-48 overflow-y-auto border border-border rounded-xl bg-card shadow-sm divide-y divide-border">
+                      {loadingInsts ? (
+                        <div className="p-3 text-xs text-muted-foreground text-center font-medium">
+                          Searching verified institutions...
+                        </div>
+                      ) : masterInstitutions.length > 0 ? (
+                        masterInstitutions.map((inst) => (
+                          <button
+                            key={inst.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedInstitutionId(inst.id);
+                              setSelectedInstitutionName(inst.name);
+                            }}
+                            className="w-full text-left p-3 hover:bg-muted transition-colors flex items-center justify-between text-xs"
+                          >
+                            <div>
+                              <p className="font-bold text-foreground">{inst.name}</p>
+                              <p className="text-muted-foreground text-[11px]">
+                                {inst.city}, {inst.state} {inst.aishe_code ? `• AISHE: ${inst.aishe_code}` : ''}
+                              </p>
+                            </div>
+                            <span className="text-[10px] uppercase font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded">
+                              Verified
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-3 text-xs text-muted-foreground text-center">
+                          {institutionQuery.length >= 2
+                            ? 'No matching verified institutions found.'
+                            : 'Type at least 2 characters to search institutions.'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fallback Select */}
+                  {!selectedInstitutionId && approvedUniversities.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-border/60">
+                      <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                        Or select from registered partner campuses:
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-border bg-card px-3.5 py-2 text-xs text-foreground focus:ring-2 focus:ring-primary/40 focus:border-primary focus:outline-none min-h-[40px]"
+                        value={selectedUnivId}
+                        onChange={(e) => setSelectedUnivId(e.target.value)}
+                      >
+                        {approvedUniversities.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.city ? `${u.city}, ` : ''}{u.state})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

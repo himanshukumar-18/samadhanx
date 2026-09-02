@@ -54,3 +54,23 @@ class User(BaseModel):
         if self.industry_profile and self.industry_profile.point_of_contact_name:
             return self.industry_profile.point_of_contact_name
         return self.email
+
+    @property
+    def avatar(self) -> str | None:
+        if self.profile_detail and self.profile_detail.avatar_url:
+            return self.profile_detail.avatar_url
+        if self.citizen_profile and self.citizen_profile.profile_picture_url:
+            return self.citizen_profile.profile_picture_url
+        if self.student_profile and self.student_profile.avatar_url:
+            return self.student_profile.avatar_url
+        if self.faculty_profile and self.faculty_profile.avatar_url:
+            return self.faculty_profile.avatar_url
+        if self.university_profile and self.university_profile.logo_url:
+            return self.university_profile.logo_url
+        if self.industry_profile and self.industry_profile.logo_url:
+            return self.industry_profile.logo_url
+        return None
+
+    @property
+    def avatar_url(self) -> str | None:
+        return self.avatar

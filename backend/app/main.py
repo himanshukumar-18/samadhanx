@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.endpoints import health
@@ -34,18 +35,33 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT.upper()}]"
     )
 
-    # Initialize database tables if they do not exist
+    # Initialize database tables & apply additive column updates automatically
     try:
         from app.db.session import async_engine
         from app.models import Base
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables verified and initialized successfully.")
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS headline VARCHAR(120);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS bio TEXT;"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS website_url VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS github_url VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;"))
+
+            await conn.execute(text("ALTER TABLE university_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
+            await conn.execute(text("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
+
+            # Ensure avatar_url and cover_url columns are TEXT to support large base64 data URIs
+            await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN avatar_url TYPE TEXT;"))
+            await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN cover_url TYPE TEXT;"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ALTER COLUMN profile_picture_url TYPE TEXT;"))
+        logger.info("Database tables and schema columns verified and updated successfully.")
     except Exception as e:
         logger.warning(f"Database auto-creation check note: {e}")
 
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
+
 
 def create_app() -> FastAPI:
     application = FastAPI(
@@ -88,5 +104,6 @@ def create_app() -> FastAPI:
     application.include_router(api_router, prefix=settings.API_V1_STR)
 
     return application
+
 
 app = create_app()

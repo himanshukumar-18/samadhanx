@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Share2, Bookmark, Users } from 'lucide-react';
+import { Heart, MessageSquare, Share2, Bookmark, Users, Eye } from 'lucide-react';
 import { problemsApi } from '../../../api/problems';
 import { socialApi } from '../../../api/social';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../../../store/authStore';
+import { useLanguageStore } from '../../../store/languageStore';
+import { getTranslation } from '../../../lib/translations';
 import toast from 'react-hot-toast';
 
 interface PostActionsProps {
@@ -22,6 +25,12 @@ export const PostActions: React.FC<PostActionsProps> = ({
   isSaved: initialSaved = false,
   onToggleCommentSection,
 }) => {
+  const { user } = useAuthStore();
+  const { language } = useLanguageStore();
+  const t = (key: string) => getTranslation(language, key);
+
+  const isCitizenRole = !user || (user.role as string) === 'citizen' || (user.role as string) === 'community';
+
   const queryClient = useQueryClient();
   const [likes, setLikes] = useState(initialLikes);
   const [liked, setLiked] = useState(initialLiked);
@@ -38,9 +47,9 @@ export const PostActions: React.FC<PostActionsProps> = ({
       setLikes((prev) => (nowEndorsed ? prev + 1 : Math.max(0, prev - 1)));
       queryClient.invalidateQueries({ queryKey: ['problems'] });
       queryClient.invalidateQueries({ queryKey: ['problem-detail', problemId] });
-      toast(nowEndorsed ? 'Endorsed problem severity!' : 'Removed endorsement', { icon: '❤️' });
+      toast(nowEndorsed ? (language === 'hi' ? 'समस्या का समर्थन किया गया!' : 'Endorsed problem severity!') : (language === 'hi' ? 'समर्थन हटाया गया' : 'Removed endorsement'), { icon: '❤️' });
     } catch {
-      toast.error('Failed to toggle endorsement.');
+      toast.error(language === 'hi' ? 'समर्थन करने में विफल।' : 'Failed to toggle endorsement.');
     } finally {
       setIsLiking(false);
     }
@@ -52,9 +61,12 @@ export const PostActions: React.FC<PostActionsProps> = ({
       setSaved(result.saved);
       queryClient.invalidateQueries({ queryKey: ['saved-problems'] });
       queryClient.invalidateQueries({ queryKey: ['problems'] });
-      toast.success(result.saved ? 'Saved to your challenge library' : 'Removed from saved challenges');
+      toast.success(result.saved 
+        ? (language === 'hi' ? 'सहेजी गई समस्याओं में जोड़ा गया' : 'Saved to your problem library')
+        : (language === 'hi' ? 'सहेजी गई समस्याओं से हटाया गया' : 'Removed from saved problems')
+      );
     } catch {
-      toast.error('Failed to update saved challenges.');
+      toast.error('Failed to update saved problems.');
     }
   };
 
@@ -67,7 +79,7 @@ export const PostActions: React.FC<PostActionsProps> = ({
     }
     const url = `${window.location.origin}/problems/${problemId}`;
     navigator.clipboard.writeText(url);
-    toast.success('Challenge link copied to clipboard!');
+    toast.success(language === 'hi' ? 'समस्या लिंक कॉपी किया गया!' : 'Problem link copied to clipboard!');
   };
 
   return (
@@ -103,19 +115,29 @@ export const PostActions: React.FC<PostActionsProps> = ({
           aria-label="Share problem"
         >
           <Share2 className="w-4 h-4" />
-          <span className="hidden sm:inline">Share</span>
+          <span className="hidden sm:inline">{t('share')}</span>
         </button>
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Join / Propose Pod Button */}
-        <a
-          href={`/problems/${problemId}`}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm transition-colors min-h-[44px]"
-        >
-          <Users className="w-4 h-4" />
-          <span>Join Pod</span>
-        </a>
+        {/* Action Button: View Details for Citizen vs Join Pod for Solver */}
+        {isCitizenRole ? (
+          <a
+            href={`/problems/${problemId}`}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted/80 hover:bg-muted text-foreground font-extrabold text-xs sm:text-sm transition-colors min-h-[44px] border border-border"
+          >
+            <Eye className="w-4 h-4 text-primary" />
+            <span>{t('view_details')}</span>
+          </a>
+        ) : (
+          <a
+            href={`/problems/${problemId}`}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs sm:text-sm transition-colors min-h-[44px]"
+          >
+            <Users className="w-4 h-4" />
+            <span>{t('join_pod')}</span>
+          </a>
+        )}
 
         {/* Bookmark Button */}
         <button

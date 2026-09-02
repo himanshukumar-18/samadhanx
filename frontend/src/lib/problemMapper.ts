@@ -12,9 +12,9 @@ export const mapApiProblem = (p: any): Problem => ({
   status: p.status,
   author: {
     id: p.created_by_id || p.author?.id,
-    name: p.author?.full_name || p.author?.email || 'Unknown user',
+    name: p.author?.full_name || p.author?.email || 'Citizen Reporter',
     role: p.author?.role || 'citizen',
-    avatar: p.author?.avatar || p.author?.avatar_url || '',
+    avatar: p.author?.avatar || p.author?.avatar_url || p.author_avatar || p.author?.profile_picture_url || '',
     location: `${p.district}, ${p.state}`,
     verified: p.is_verified,
   },

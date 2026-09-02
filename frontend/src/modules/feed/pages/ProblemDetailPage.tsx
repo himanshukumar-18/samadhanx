@@ -6,6 +6,7 @@ import { Button } from '../../../shared/components/ui/Button';
 import { PostComments } from '../components/PostComments';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
 import { Skeleton } from '../../../shared/components/ui/Skeleton';
+import { useAuthStore } from '../../../store/authStore';
 import { 
   Users, 
   Share2, 
@@ -13,7 +14,8 @@ import {
   Heart, 
   ArrowLeft,
   CheckCircle2,
-  Inbox
+  Inbox,
+  PlusCircle
 } from 'lucide-react';
 import { problemsApi } from '../../../api/problems';
 import { projectsApi } from '../../../api/projects';
@@ -21,6 +23,9 @@ import { socialApi } from '../../../api/social';
 import toast from 'react-hot-toast';
 
 export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId: propId }) => {
+  const { user } = useAuthStore();
+  const isCitizenRole = !user || (user.role as string) === 'citizen' || (user.role as string) === 'community';
+
   const pathParts = window.location.pathname.split('/');
   const urlId = pathParts[pathParts.length - 1];
   const id = propId || (urlId !== 'problems' ? urlId : undefined);
@@ -120,9 +125,9 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
             <Share2 className="w-4 h-4" />
           </button>
           <button
-            onClick={async () => { if (!id) return; try { const result = await socialApi.toggleSaveProblem(id); toast.success(result.saved ? 'Saved to your challenge library' : 'Removed from saved challenges'); refetch(); } catch { toast.error('Failed to update saved challenges.'); } }}
+            onClick={async () => { if (!id) return; try { const result = await socialApi.toggleSaveProblem(id); toast.success(result.saved ? 'Saved to your problem library' : 'Removed from saved problems'); refetch(); } catch { toast.error('Failed to update saved problems.'); } }}
             className="p-2 bg-card hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Save challenge"
+            aria-label="Save problem"
           >
             <Bookmark className="w-4 h-4" />
           </button>
@@ -146,7 +151,7 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
             </span>
             <span className="text-muted-foreground">→</span>
             <span className="font-bold text-primary flex items-center gap-1 ring-2 ring-primary/20 px-2.5 py-1 rounded-full bg-primary/10">
-              <Users className="w-4 h-4" /> 3. Team Forming
+              <Users className="w-4 h-4" /> 3. Solution Active
             </span>
             <span className="text-muted-foreground">→</span>
             <span className="text-muted-foreground">4. Prototype</span>
@@ -191,7 +196,7 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
+        <div className="flex items-center justify-between pt-3 border-t border-border flex-wrap gap-2">
           <button
             onClick={handleLike}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold transition-all min-h-[44px] text-muted-foreground hover:bg-muted"
@@ -200,15 +205,27 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
             <span>{problem.endorsements?.length || 0} Endorsements</span>
           </button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setJoinModalOpen(true)}
-            className="font-bold text-sm min-h-[44px] px-5"
-            leftIcon={<Users className="w-4 h-4" />}
-          >
-            Form / Join Solution Pod
-          </Button>
+          {!isCitizenRole ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setJoinModalOpen(true)}
+              className="font-bold text-sm min-h-[44px] px-5"
+              leftIcon={<Users className="w-4 h-4" />}
+            >
+              Form / Join Solution Pod
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => (window.location.href = '/')}
+              className="font-bold text-sm min-h-[44px] px-5"
+              leftIcon={<PlusCircle className="w-4 h-4" />}
+            >
+              Report Another Problem
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -220,8 +237,8 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
         <PostComments problemId={id} comments={problem.comments} />
       </Card>
 
-      {/* Join Pod Modal */}
-      {joinModalOpen && (
+      {/* Join Pod Modal (Available for Solvers) */}
+      {!isCitizenRole && joinModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <Card className="w-full max-w-md shadow-2xl border-border space-y-4">
             <div className="flex items-center justify-between">

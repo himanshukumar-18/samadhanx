@@ -3,6 +3,8 @@ import { MainLayout } from '../shared/components/layout/MainLayout';
 import { FeedPage } from '../modules/feed/pages/FeedPage';
 import { ProblemDetailPage } from '../modules/feed/pages/ProblemDetailPage';
 import { ProfilePage } from '../modules/profile/pages/ProfilePage';
+import { SettingsPage } from '../modules/profile/pages/SettingsPage';
+import { CitizenDashboard } from '../modules/citizen/pages/CitizenDashboard';
 import { ExplorePage } from '../modules/explore/pages/ExplorePage';
 import { TeamDetailPage } from '../modules/teams/pages/TeamDetailPage';
 import { LoginPage } from '../modules/auth/pages/LoginPage';
@@ -41,8 +43,26 @@ export const AppRoutes: React.FC = () => {
     );
   }
 
+  // Citizen Dashboard Desk
+  if (path === '/dashboard' || path === '/citizen/dashboard') {
+    return (
+      <MainLayout>
+        <CitizenDashboard />
+      </MainLayout>
+    );
+  }
+
   if (path === '/saved') return <MainLayout><SavedProblemsPage /></MainLayout>;
   if (path === '/notifications') return <MainLayout><NotificationsPage /></MainLayout>;
+
+  // Account Settings Page
+  if (path === '/settings') {
+    return (
+      <MainLayout showRightSidebar={false}>
+        <SettingsPage />
+      </MainLayout>
+    );
+  }
 
   // Problem Detail Page
   if (path.startsWith('/problems/')) {

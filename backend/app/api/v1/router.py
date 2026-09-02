@@ -7,10 +7,12 @@ from app.api.v1.endpoints.chat import router as chat_router
 from app.api.v1.endpoints.citizen import router as citizen_router
 from app.api.v1.endpoints.faculty import router as faculty_router
 from app.api.v1.endpoints.industry import router as industry_router
+from app.api.v1.endpoints.institutions import router as institutions_router
 from app.api.v1.endpoints.notifications import router as notifications_router
 from app.api.v1.endpoints.problems import router as problems_router
 from app.api.v1.endpoints.profile import router as profile_router
 from app.api.v1.endpoints.projects import router as projects_router
+from app.api.v1.endpoints.public import router as public_router
 from app.api.v1.endpoints.settings import router as settings_router
 from app.api.v1.endpoints.social import router as social_router
 from app.api.v1.endpoints.student import router as student_router
@@ -18,8 +20,10 @@ from app.api.v1.endpoints.university import router as university_router
 
 api_router = APIRouter()
 
-# Core system diagnostics
+# Core system diagnostics & public endpoints
 api_router.include_router(system.router)
+api_router.include_router(public_router)
+api_router.include_router(institutions_router)
 
 # Auth & User Identity
 api_router.include_router(auth_router)
