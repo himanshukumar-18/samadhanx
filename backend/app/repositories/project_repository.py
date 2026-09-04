@@ -38,7 +38,7 @@ class ProjectRepository:
                 selectinload(SolutionProject.faculty_mentor),
                 selectinload(SolutionProject.university),
                 selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-                selectinload(SolutionProject.updates),
+                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
                 selectinload(SolutionProject.reviews),
                 selectinload(SolutionProject.supports),
             )
@@ -64,7 +64,7 @@ class ProjectRepository:
                 selectinload(SolutionProject.lead_student),
                 selectinload(SolutionProject.faculty_mentor),
                 selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-                selectinload(SolutionProject.updates),
+                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
                 selectinload(SolutionProject.reviews),
             )
             .order_by(SolutionProject.created_at.desc())
@@ -82,6 +82,26 @@ class ProjectRepository:
             query = query.where(SolutionProject.status == status)
 
         query = query.offset(offset).limit(limit)
+        result = await self.db.execute(query)
+        return result.scalars().all()
+
+    async def list_user_projects(self, user_id: uuid.UUID) -> Sequence[SolutionProject]:
+        query = (
+            select(SolutionProject)
+            .options(
+                selectinload(SolutionProject.problem),
+                selectinload(SolutionProject.lead_student),
+                selectinload(SolutionProject.faculty_mentor),
+                selectinload(SolutionProject.university),
+                selectinload(SolutionProject.members).selectinload(ProjectMember.user),
+                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
+                selectinload(SolutionProject.reviews),
+            )
+            .outerjoin(ProjectMember, SolutionProject.id == ProjectMember.project_id)
+            .where((SolutionProject.lead_student_id == user_id) | (ProjectMember.user_id == user_id))
+            .distinct()
+            .order_by(SolutionProject.created_at.desc())
+        )
         result = await self.db.execute(query)
         return result.scalars().all()
 

@@ -43,6 +43,7 @@ class ProjectUpdateResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     author_id: uuid.UUID
+    author_name: str | None = None
     title: str
     content: str
     prototype_url: str | None = None
@@ -55,17 +56,21 @@ class ProjectUpdateResponse(BaseModel):
 class ProjectResponse(BaseModel):
     id: uuid.UUID
     problem_id: uuid.UUID
+    problem_title: str | None = None
+    problem_category: str | None = None
     team_name: str
     title: str
     description: str
     repository_url: str | None = None
     status: ProjectStatus
     lead_student_id: uuid.UUID
+    lead_student_name: str | None = None
     faculty_mentor_id: uuid.UUID | None = None
     university_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 
     members: list[ProjectMemberResponse] = Field(default_factory=list)
+    updates: list[ProjectUpdateResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

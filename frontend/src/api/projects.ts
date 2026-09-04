@@ -6,6 +6,11 @@ export const projectsApi = {
     return res.data;
   },
 
+  listMyProjects: async () => {
+    const res = await apiClient.get('/student/projects');
+    return res.data;
+  },
+
   pickProject: async (data: {
     problem_id: string;
     team_name: string;
@@ -35,6 +40,11 @@ export const projectsApi = {
 
   addProjectMember: async (id: string, data: { user_id: string; role_in_team?: string }) => {
     const res = await apiClient.post(`/projects/${id}/members`, data);
+    return res.data;
+  },
+
+  listPeople: async (params?: { search?: string; limit?: number }) => {
+    const res = await apiClient.get('/student/people', { params });
     return res.data;
   },
 };

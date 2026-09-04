@@ -5,6 +5,7 @@ from app.models.chat import ChatMessage
 from app.models.enums import OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
+from app.models.institution_request import InstitutionVerificationRequest
 from app.models.institution_sync import InstitutionSyncError, InstitutionSyncLog
 from app.models.notification import Notification
 from app.models.otp import OTPVerification
@@ -38,6 +39,7 @@ __all__ = [
     "FacultyProfile",
     "IndustryProfile",
     "InstitutionMaster",
+    "InstitutionVerificationRequest",
     "normalize_institution_name",
     "InstitutionSyncLog",
     "InstitutionSyncError",

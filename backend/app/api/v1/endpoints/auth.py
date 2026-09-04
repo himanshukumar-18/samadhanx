@@ -19,6 +19,7 @@ from app.core.security import (
 from app.models.audit_log import AuditLog
 from app.models.enums import OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.institution_master import InstitutionMaster
+from app.models.institution_request import InstitutionVerificationRequest
 from app.models.otp import OTPVerification
 from app.models.profiles import (
     CitizenProfile,
@@ -148,6 +149,8 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
     inst_master = None
     target_univ_id = None
     target_inst_id = None
+    inst_req = None
+    is_student_approved = True
 
     if data.institution_id:
         inst_query = select(InstitutionMaster).where(
@@ -167,10 +170,7 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
         if univ_prof:
             target_univ_id = univ_prof.id
         else:
-            # Fallback to any approved university or first university profile
-            any_univ = (await db.execute(select(UniversityProfile).where(UniversityProfile.is_approved.is_(True)))).scalars().first()
-            if any_univ:
-                target_univ_id = any_univ.id
+            target_univ_id = None
 
     if not target_univ_id and data.university_id:
         univ_query = select(UniversityProfile).where(
@@ -186,10 +186,29 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
         target_univ_id = university.id
         target_inst_id = university.institution_id
 
-    if not target_univ_id and not target_inst_id:
+    # Fallback path: Student registered under a pending verification request
+    if not target_univ_id and not target_inst_id and data.pending_institution_request_id:
+        req_stmt = select(InstitutionVerificationRequest).where(
+            InstitutionVerificationRequest.id == data.pending_institution_request_id
+        )
+        inst_req = (await db.execute(req_stmt)).scalar_one_or_none()
+        if not inst_req:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_REQUEST", "message": "Institution verification request not found."},
+            )
+
+        if inst_req.status == "APPROVED" and inst_req.approved_institution_id:
+            target_inst_id = inst_req.approved_institution_id
+            is_student_approved = True
+        else:
+            # Student account remains pending until institution verification request is reviewed & approved by admin
+            is_student_approved = False
+
+    if not target_univ_id and not target_inst_id and not inst_req:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "INVALID_INSTITUTION", "message": "Please select a valid, verified university or institution."},
+            detail={"code": "INVALID_INSTITUTION", "message": "Please select a valid, verified university or submit an institution verification request."},
         )
 
     user = User(
@@ -198,10 +217,13 @@ async def register_student(data: StudentRegister, db: AsyncSession = Depends(get
         role=UserRole.STUDENT,
         is_verified=False,
         is_active=True,
-        is_approved=True,
+        is_approved=is_student_approved,
     )
     db.add(user)
     await db.flush()
+
+    if inst_req and not inst_req.submitted_by_user_id:
+        inst_req.submitted_by_user_id = user.id
 
     profile = StudentProfile(
         user_id=user.id,

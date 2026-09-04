@@ -1,47 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
+import { institutionsApi, InstitutionMasterItem } from '../api/institutions';
 
-export interface InstitutionMasterItem {
-  id: string;
-  name: string;
-  aishe_code: string | null;
-  city: string;
-  state: string;
-  category: string | null;
-  verification_status: string;
-}
+export type { InstitutionMasterItem };
 
 interface InstitutionSearchResponse {
+  success: boolean;
   data: InstitutionMasterItem[];
-  total: number;
-  limit: number;
-  offset: number;
+  message?: string;
 }
 
-const fetchInstitutions = async (searchTerm: string): Promise<InstitutionSearchResponse> => {
-  const params: Record<string, string | number> = { limit: 20 };
-  if (searchTerm.trim().length >= 2) {
-    params.q = searchTerm.trim();
-  }
-  const res = await apiClient.get('/public/institutions', { params });
-  return res.data;
-};
-
-export const useInstitutionSearch = (searchTerm: string, enabled = true) => {
+export const useInstitutionSearch = (searchTerm: string, enabled = true, stateFilter?: string) => {
   const [debouncedTerm, setDebouncedTerm] = useState(searchTerm);
 
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedTerm(searchTerm);
-    }, 300); // 300ms debounce rate limit protection
+    }, 300); // 300ms debounce protection
 
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  return useQuery({
-    queryKey: ['institutions', 'search', debouncedTerm],
-    queryFn: () => fetchInstitutions(debouncedTerm),
+  return useQuery<InstitutionSearchResponse>({
+    queryKey: ['institutions', 'search', debouncedTerm, stateFilter],
+    queryFn: () =>
+      institutionsApi.searchPublicInstitutions({
+        q: debouncedTerm.trim().length >= 2 ? debouncedTerm.trim() : undefined,
+        state: stateFilter?.trim() || undefined,
+        limit: 20,
+      }),
     enabled: enabled,
     staleTime: 60 * 1000,
   });

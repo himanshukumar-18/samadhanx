@@ -82,6 +82,9 @@ class ProjectService:
             limit=limit,
         )
 
+    async def list_my_projects(self, user: User) -> Sequence[SolutionProject]:
+        return await self.repo.list_user_projects(user.id)
+
     async def add_project_update(
         self, user: User, project_id: uuid.UUID, data: ProjectUpdateCreate
     ) -> ProjectUpdate:

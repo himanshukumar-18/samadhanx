@@ -64,6 +64,18 @@ class SolutionProject(BaseModel):
         "IndustrySupport", back_populates="project", cascade="all, delete-orphan"
     )
 
+    @property
+    def problem_title(self) -> str | None:
+        return self.problem.title if self.problem else None
+
+    @property
+    def problem_category(self) -> str | None:
+        return self.problem.category if self.problem else None
+
+    @property
+    def lead_student_name(self) -> str | None:
+        return self.lead_student.full_name if self.lead_student else None
+
 
 class ProjectMember(BaseModel):
     __tablename__ = "project_members"
@@ -79,3 +91,11 @@ class ProjectMember(BaseModel):
 
     project: Mapped["SolutionProject"] = relationship("SolutionProject", back_populates="members")
     user: Mapped["User"] = relationship("User")
+
+    @property
+    def member_name(self) -> str | None:
+        return self.user.full_name if self.user else None
+
+    @property
+    def email(self) -> str | None:
+        return self.user.email if self.user else None

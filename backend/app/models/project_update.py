@@ -28,3 +28,7 @@ class ProjectUpdate(BaseModel):
 
     project: Mapped["SolutionProject"] = relationship("SolutionProject", back_populates="updates")
     author: Mapped["User"] = relationship("User")
+
+    @property
+    def author_name(self) -> str | None:
+        return self.author.full_name if self.author else None

@@ -33,6 +33,7 @@ class StudentRegister(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=255)
     university_id: uuid.UUID | None = None
     institution_id: uuid.UUID | None = None
+    pending_institution_request_id: uuid.UUID | None = None
     enrollment_number: str | None = None
     department: str = Field(..., min_length=2, max_length=150)
     graduation_year: int | None = None

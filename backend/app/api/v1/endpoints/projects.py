@@ -23,6 +23,7 @@ router = APIRouter(prefix="/projects", tags=["Solution Projects"])
 async def list_projects(
     db: Annotated[AsyncSession, Depends(get_db)],
     problem_id: uuid.UUID | None = Query(None),
+    lead_student_id: uuid.UUID | None = Query(None),
     status: ProjectStatus | None = Query(None),
     university_id: uuid.UUID | None = Query(None),
     offset: int = Query(0, ge=0),
@@ -30,8 +31,22 @@ async def list_projects(
 ):
     service = ProjectService(db)
     return await service.list_projects(
-        problem_id=problem_id, status_filter=status, university_id=university_id, offset=offset, limit=limit
+        problem_id=problem_id,
+        lead_student_id=lead_student_id,
+        status_filter=status,
+        university_id=university_id,
+        offset=offset,
+        limit=limit,
     )
+
+
+@router.get("/my", response_model=list[ProjectResponse])
+async def list_my_projects(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    service = ProjectService(db)
+    return await service.list_my_projects(current_user)
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

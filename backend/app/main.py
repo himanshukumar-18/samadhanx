@@ -50,6 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
             await conn.execute(text("ALTER TABLE university_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
             await conn.execute(text("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
+            await conn.execute(text("ALTER TABLE student_profiles ALTER COLUMN university_id DROP NOT NULL;"))
 
             # Fix industry_profiles schema drift — table was created from old model snapshot
             # and is missing several columns added later. All statements use IF NOT EXISTS
@@ -69,6 +70,45 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS bio TEXT;"))
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(10);"))
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS interests JSON DEFAULT '[]';"))
+
+            # Extended Institution Master fields & Verification Requests (migration 0009)
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS official_name VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS short_name VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS institution_type VARCHAR(50) DEFAULT 'UNIVERSITY';"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS ownership_type VARCHAR(50) DEFAULT 'GOVERNMENT';"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS ugc_code VARCHAR(50);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS city VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS pincode VARCHAR(10);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS address TEXT;"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'ACTIVE';"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS source_identifier VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS source_reference VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMP WITH TIME ZONE;"))
+            await conn.execute(text("ALTER TABLE institution_masters ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP WITH TIME ZONE;"))
+
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS institution_verification_requests (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    submitted_by_email VARCHAR(255) NOT NULL,
+                    submitted_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    requested_name VARCHAR(255) NOT NULL,
+                    institution_type VARCHAR(50) NOT NULL DEFAULT 'College',
+                    state VARCHAR(100) NOT NULL,
+                    district VARCHAR(100) NOT NULL,
+                    city VARCHAR(100),
+                    official_website VARCHAR(255),
+                    aishe_code VARCHAR(50),
+                    ugc_code VARCHAR(50),
+                    additional_notes TEXT,
+                    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+                    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+                    reviewed_at TIMESTAMP WITH TIME ZONE,
+                    rejection_reason TEXT,
+                    approved_institution_id UUID REFERENCES institution_masters(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+                );
+            """))
 
             # Ensure avatar_url and cover_url columns are TEXT to support large base64 data URIs
             await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN avatar_url TYPE TEXT;"))
