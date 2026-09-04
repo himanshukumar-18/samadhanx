@@ -65,3 +65,23 @@ class NotificationType(StrEnum):
     REVIEW_FEEDBACK = "review_feedback"
     INDUSTRY_SUPPORT = "industry_support"
     SYSTEM_ALERT = "system_alert"
+
+
+class Gender(StrEnum):
+    MALE = "male"
+    FEMALE = "female"
+    OTHER = "other"
+    PREFER_NOT_TO_SAY = "prefer_not_to_say"
+
+
+class PreferredLanguage(StrEnum):
+    EN = "en"
+    HI = "hi"
+    BN = "bn"
+    TA = "ta"
+    TE = "te"
+    MR = "mr"
+    GU = "gu"
+    KN = "kn"
+    ML = "ml"
+    PA = "pa"

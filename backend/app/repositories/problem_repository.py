@@ -51,6 +51,7 @@ class ProblemRepository:
         created_by_id: uuid.UUID | None = None,
         is_verified_only: bool = False,
         search_query: str | None = None,
+        exclude_statuses: list[ProblemStatus] | None = None,
         offset: int = 0,
         limit: int = 20,
     ) -> Sequence[Problem]:
@@ -87,6 +88,8 @@ class ProblemRepository:
             query = query.where(
                 Problem.title.ilike(pattern) | Problem.description.ilike(pattern) | Problem.category.ilike(pattern)
             )
+        if exclude_statuses:
+            query = query.where(Problem.status.not_in(exclude_statuses))
 
         query = query.offset(offset).limit(limit)
         result = await self.db.execute(query)

@@ -174,13 +174,21 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
           </h1>
         </div>
 
-        {/* Submitter Author Info */}
-        <div className="flex items-center gap-3 pt-2 border-t border-border">
-          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm uppercase">
+        {/* Submitter Author Info — clickable profile link */}
+        <a
+          href={
+            problem.author?.id && problem.author.id !== user?.id
+              ? `/profile/user/${problem.author.id}`
+              : '/profile'
+          }
+          className="flex items-center gap-3 pt-2 border-t border-border group"
+          aria-label={`View ${problem.author?.full_name || 'Citizen Reporter'}'s profile`}
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm uppercase ring-2 ring-primary/20 group-hover:ring-primary/60 transition-all flex-shrink-0">
             {problem.author?.full_name ? problem.author.full_name.slice(0, 2) : 'SX'}
           </div>
           <div>
-            <div className="text-sm font-bold text-foreground flex items-center gap-1">
+            <div className="text-sm font-bold text-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
               {problem.author?.full_name || problem.author?.email || 'Citizen Reporter'}
               <CheckCircle2 className="w-4 h-4 text-primary" />
             </div>
@@ -188,7 +196,7 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
               📍 {problem.district}, {problem.state} • Reported {new Date(problem.created_at).toLocaleDateString()}
             </div>
           </div>
-        </div>
+        </a>
 
         {/* Detailed Description */}
         <div className="text-sm sm:text-base text-foreground/90 space-y-3 leading-relaxed pt-2">

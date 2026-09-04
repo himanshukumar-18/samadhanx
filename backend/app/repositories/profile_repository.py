@@ -52,11 +52,18 @@ class ProfileRepository:
                 location="India",
                 district="Default District",
                 state="Default State",
+                interests=[],
             )
             self.db.add(cp)
             await self.db.flush()
             await self.db.refresh(cp)
         return cp
+
+    async def get_citizen_profile(self, user_id: uuid.UUID) -> CitizenProfile | None:
+        """Load the CitizenProfile for a given user, or None if not found."""
+        q = select(CitizenProfile).where(CitizenProfile.user_id == user_id)
+        res = await self.db.execute(q)
+        return res.scalar_one_or_none()
 
     async def update_citizen_profile(self, user_id: uuid.UUID, update_dict: dict) -> CitizenProfile:
         cp = await self.get_or_create_citizen_profile(user_id)
@@ -67,23 +74,47 @@ class ProfileRepository:
         await self.db.refresh(cp)
         return cp
 
-    async def get_citizen_problem_stats(self, user_id: uuid.UUID) -> dict[str, int]:
-        q = select(Problem.status, func.count(Problem.id)).where(Problem.created_by_id == user_id).group_by(Problem.status)
+    async def get_citizen_activity_stats(self, user_id: uuid.UUID) -> dict[str, int]:
+        """
+        Aggregate real problem counts from the DB.
+        Returns keys matching CitizenActivityStats: submitted, approved, pending, rejected, solved.
+        """
+        q = (
+            select(Problem.status, func.count(Problem.id))
+            .where(Problem.created_by_id == user_id)
+            .group_by(Problem.status)
+        )
         res = await self.db.execute(q)
         counts = {str(r[0]): r[1] for r in res.all()}
 
-        submitted = sum(counts.values())
+        total = sum(counts.values())
         pending = counts.get("submitted", 0) + counts.get("under_review", 0)
-        approved = counts.get("verified", 0) + counts.get("in_progress", 0) + counts.get("pilot", 0) + counts.get("solution_submitted", 0)
+        approved = (
+            counts.get("verified", 0)
+            + counts.get("in_progress", 0)
+            + counts.get("pilot", 0)
+            + counts.get("solution_submitted", 0)
+        )
         rejected = counts.get("rejected", 0)
         solved = counts.get("solved", 0)
 
         return {
-            "problems_submitted": submitted,
-            "problems_approved": approved,
-            "problems_pending": pending,
-            "problems_rejected": rejected,
-            "problems_solved": solved,
+            "submitted": total,
+            "approved": approved,
+            "pending": pending,
+            "rejected": rejected,
+            "solved": solved,
+        }
+
+    # Legacy method name kept for backward-compat (used by non-citizen profile service path)
+    async def get_citizen_problem_stats(self, user_id: uuid.UUID) -> dict[str, int]:
+        stats = await self.get_citizen_activity_stats(user_id)
+        return {
+            "problems_submitted": stats["submitted"],
+            "problems_approved": stats["approved"],
+            "problems_pending": stats["pending"],
+            "problems_rejected": stats["rejected"],
+            "problems_solved": stats["solved"],
         }
 
     async def get_user_with_profiles(self, user_id: uuid.UUID) -> User | None:

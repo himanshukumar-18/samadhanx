@@ -1,7 +1,8 @@
 import uuid
+from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,8 +43,18 @@ class CitizenProfile(BaseModel):
     district: Mapped[str] = mapped_column(String(100), nullable=False)
     state: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    headline: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # New civic profile fields
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pincode: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    full_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preferred_language: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    interests: Mapped[list | None] = mapped_column(JSON, default=list)
+
+    # Legacy social fields — kept in DB, not used for citizen API (kept nullable, never exposed)
+    headline: Mapped[str | None] = mapped_column(String(120), nullable=True)
     website_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     linkedin_url: Mapped[str | None] = mapped_column(String(255), nullable=True)

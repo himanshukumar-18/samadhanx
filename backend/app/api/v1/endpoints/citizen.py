@@ -7,10 +7,52 @@ from app.core.deps import get_db, require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.problem import ProblemCreate, ProblemResponse
+from app.schemas.profile_detail import CitizenProfileResponse, CitizenProfileUpdate
 from app.services.problem_service import ProblemService
+from app.services.profile_service import ProfileService
 
 router = APIRouter(prefix="/citizen", tags=["Citizen"])
 
+
+# ---------------------------------------------------------------------------
+# Citizen Profile — GET
+# ---------------------------------------------------------------------------
+
+@router.get("/profile", response_model=CitizenProfileResponse)
+async def get_citizen_profile(
+    current_user: Annotated[User, Depends(require_role([UserRole.CITIZEN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return the authenticated citizen's full civic profile."""
+    service = ProfileService(db)
+    return await service.get_citizen_profile(current_user)
+
+
+# ---------------------------------------------------------------------------
+# Citizen Profile — PATCH
+# ---------------------------------------------------------------------------
+
+@router.patch("/profile", response_model=CitizenProfileResponse)
+async def update_citizen_profile(
+    data: CitizenProfileUpdate,
+    current_user: Annotated[User, Depends(require_role([UserRole.CITIZEN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Update the authenticated citizen's profile.
+
+    Only whitelisted civic fields are accepted. The schema uses extra='forbid'
+    so attempts to send role/email/account_status/activity will be rejected 422.
+
+    Ownership is enforced server-side — the user can only update their own profile.
+    """
+    service = ProfileService(db)
+    return await service.update_citizen_profile(current_user, data)
+
+
+# ---------------------------------------------------------------------------
+# Citizen Dashboard
+# ---------------------------------------------------------------------------
 
 @router.get("/dashboard", response_model=dict)
 async def get_citizen_dashboard(
@@ -32,6 +74,10 @@ async def get_citizen_dashboard(
         "total_submitted_count": len(my_problems),
     }
 
+
+# ---------------------------------------------------------------------------
+# Citizen Problems
+# ---------------------------------------------------------------------------
 
 @router.post("/problems", response_model=ProblemResponse, status_code=status.HTTP_201_CREATED)
 async def submit_problem(

@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.enums import NotificationType, ProblemStatus, UserRole
 from app.models.problem import Problem, ProblemComment
 from app.models.user import User
-from app.repositories.problem_repository import ProblemRepository
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.problem_repository import ProblemRepository
 from app.repositories.social_repository import SocialRepository
 from app.schemas.problem import ProblemCreate, ProblemUpdate
 
@@ -58,6 +58,7 @@ class ProblemService:
         created_by_id: uuid.UUID | None = None,
         is_verified_only: bool = False,
         search_query: str | None = None,
+        exclude_statuses: list[ProblemStatus] | None = None,
         offset: int = 0,
         limit: int = 20,
     ) -> Sequence[Problem]:
@@ -69,6 +70,7 @@ class ProblemService:
             created_by_id=created_by_id,
             is_verified_only=is_verified_only,
             search_query=search_query,
+            exclude_statuses=exclude_statuses,
             offset=offset,
             limit=limit,
         )

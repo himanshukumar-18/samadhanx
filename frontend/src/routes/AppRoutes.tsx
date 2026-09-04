@@ -3,6 +3,7 @@ import { MainLayout } from '../shared/components/layout/MainLayout';
 import { FeedPage } from '../modules/feed/pages/FeedPage';
 import { ProblemDetailPage } from '../modules/feed/pages/ProblemDetailPage';
 import { ProfilePage } from '../modules/profile/pages/ProfilePage';
+import { PublicProfilePage } from '../modules/profile/pages/PublicProfilePage';
 import { SettingsPage } from '../modules/profile/pages/SettingsPage';
 import { CitizenDashboard } from '../modules/citizen/pages/CitizenDashboard';
 import { ExplorePage } from '../modules/explore/pages/ExplorePage';
@@ -82,7 +83,17 @@ export const AppRoutes: React.FC = () => {
     );
   }
 
-  // Profile & People
+  // Public user profile — MUST be before '/profile' to avoid prefix collision
+  if (path.startsWith('/profile/user/')) {
+    const userId = path.replace('/profile/user/', '').split('/')[0] || null;
+    return (
+      <MainLayout>
+        <PublicProfilePage userId={userId} />
+      </MainLayout>
+    );
+  }
+
+  // Profile & People (own profile)
   if (path === '/profile' || path.startsWith('/people/')) {
     return (
       <MainLayout>

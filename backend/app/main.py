@@ -51,6 +51,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await conn.execute(text("ALTER TABLE university_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
             await conn.execute(text("ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS institution_id UUID;"))
 
+            # Fix industry_profiles schema drift — table was created from old model snapshot
+            # and is missing several columns added later. All statements use IF NOT EXISTS
+            # so they are safe to re-run on containers that already have some columns.
+            await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS industry_type VARCHAR(100) NOT NULL DEFAULT 'Unknown';"))
+            await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS point_of_contact_name VARCHAR(255) NOT NULL DEFAULT 'Unknown';"))
+            await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS official_email VARCHAR(255) NOT NULL DEFAULT '';"))
+            await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255);"))
+
+            # Citizen civic profile fields (migration 0008)
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS date_of_birth DATE;"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(20);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS city VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS pincode VARCHAR(10);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS full_address TEXT;"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS bio TEXT;"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(10);"))
+            await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS interests JSON DEFAULT '[]';"))
+
             # Ensure avatar_url and cover_url columns are TEXT to support large base64 data URIs
             await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN avatar_url TYPE TEXT;"))
             await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN cover_url TYPE TEXT;"))
