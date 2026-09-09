@@ -43,34 +43,46 @@ class User(BaseModel):
 
     @property
     def full_name(self) -> str:
-        if self.citizen_profile and self.citizen_profile.full_name:
-            return self.citizen_profile.full_name
-        if self.student_profile and self.student_profile.full_name:
-            return self.student_profile.full_name
-        if self.faculty_profile and self.faculty_profile.full_name:
-            return self.faculty_profile.full_name
-        if self.university_profile and self.university_profile.nodal_officer_name:
-            return self.university_profile.nodal_officer_name
-        if self.industry_profile and self.industry_profile.point_of_contact_name:
-            return self.industry_profile.point_of_contact_name
+        cp = self.__dict__.get("citizen_profile")
+        if cp and getattr(cp, "full_name", None):
+            return cp.full_name
+        sp = self.__dict__.get("student_profile")
+        if sp and getattr(sp, "full_name", None):
+            return sp.full_name
+        fp = self.__dict__.get("faculty_profile")
+        if fp and getattr(fp, "full_name", None):
+            return fp.full_name
+        up = self.__dict__.get("university_profile")
+        if up and getattr(up, "nodal_officer_name", None):
+            return up.nodal_officer_name
+        ip = self.__dict__.get("industry_profile")
+        if ip and getattr(ip, "point_of_contact_name", None):
+            return ip.point_of_contact_name
         return self.email
 
     @property
     def avatar(self) -> str | None:
-        if self.profile_detail and self.profile_detail.avatar_url:
-            return self.profile_detail.avatar_url
-        if self.citizen_profile and self.citizen_profile.profile_picture_url:
-            return self.citizen_profile.profile_picture_url
-        if self.student_profile and self.student_profile.avatar_url:
-            return self.student_profile.avatar_url
-        if self.faculty_profile and self.faculty_profile.avatar_url:
-            return self.faculty_profile.avatar_url
-        if self.university_profile and self.university_profile.logo_url:
-            return self.university_profile.logo_url
-        if self.industry_profile and self.industry_profile.logo_url:
-            return self.industry_profile.logo_url
+        pd = self.__dict__.get("profile_detail")
+        if pd and getattr(pd, "avatar_url", None):
+            return pd.avatar_url
+        cp = self.__dict__.get("citizen_profile")
+        if cp and getattr(cp, "profile_picture_url", None):
+            return cp.profile_picture_url
+        sp = self.__dict__.get("student_profile")
+        if sp and getattr(sp, "avatar_url", None):
+            return sp.avatar_url
+        fp = self.__dict__.get("faculty_profile")
+        if fp and getattr(fp, "avatar_url", None):
+            return fp.avatar_url
+        up = self.__dict__.get("university_profile")
+        if up and getattr(up, "logo_url", None):
+            return up.logo_url
+        ip = self.__dict__.get("industry_profile")
+        if ip and getattr(ip, "logo_url", None):
+            return ip.logo_url
         return None
 
     @property
     def avatar_url(self) -> str | None:
         return self.avatar
+

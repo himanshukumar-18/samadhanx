@@ -7,7 +7,30 @@ from sqlalchemy.orm import selectinload
 
 from app.models.enums import ProjectStatus
 from app.models.project import ProjectMember, SolutionProject
+from app.models.project_review import ProjectReview
 from app.models.project_update import ProjectUpdate
+from app.models.user import User
+
+
+def _project_query_options():
+    return [
+        selectinload(SolutionProject.problem),
+        selectinload(SolutionProject.lead_student).selectinload(User.student_profile),
+        selectinload(SolutionProject.lead_student).selectinload(User.citizen_profile),
+        selectinload(SolutionProject.lead_student).selectinload(User.profile_detail),
+        selectinload(SolutionProject.faculty_mentor).selectinload(User.faculty_profile),
+        selectinload(SolutionProject.faculty_mentor).selectinload(User.profile_detail),
+        selectinload(SolutionProject.university),
+        selectinload(SolutionProject.members).selectinload(ProjectMember.user).selectinload(User.student_profile),
+        selectinload(SolutionProject.members).selectinload(ProjectMember.user).selectinload(User.citizen_profile),
+        selectinload(SolutionProject.members).selectinload(ProjectMember.user).selectinload(User.profile_detail),
+        selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author).selectinload(User.student_profile),
+        selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author).selectinload(User.citizen_profile),
+        selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author).selectinload(User.profile_detail),
+        selectinload(SolutionProject.reviews).selectinload(ProjectReview.reviewer).selectinload(User.faculty_profile),
+        selectinload(SolutionProject.reviews).selectinload(ProjectReview.reviewer).selectinload(User.profile_detail),
+        selectinload(SolutionProject.supports),
+    ]
 
 
 class ProjectRepository:
@@ -32,16 +55,7 @@ class ProjectRepository:
     async def get_by_id(self, project_id: uuid.UUID) -> SolutionProject | None:
         query = (
             select(SolutionProject)
-            .options(
-                selectinload(SolutionProject.problem),
-                selectinload(SolutionProject.lead_student),
-                selectinload(SolutionProject.faculty_mentor),
-                selectinload(SolutionProject.university),
-                selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
-                selectinload(SolutionProject.reviews),
-                selectinload(SolutionProject.supports),
-            )
+            .options(*_project_query_options())
             .where(SolutionProject.id == project_id)
         )
         result = await self.db.execute(query)
@@ -59,14 +73,7 @@ class ProjectRepository:
     ) -> Sequence[SolutionProject]:
         query = (
             select(SolutionProject)
-            .options(
-                selectinload(SolutionProject.problem),
-                selectinload(SolutionProject.lead_student),
-                selectinload(SolutionProject.faculty_mentor),
-                selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
-                selectinload(SolutionProject.reviews),
-            )
+            .options(*_project_query_options())
             .order_by(SolutionProject.created_at.desc())
         )
 
@@ -88,15 +95,7 @@ class ProjectRepository:
     async def list_user_projects(self, user_id: uuid.UUID) -> Sequence[SolutionProject]:
         query = (
             select(SolutionProject)
-            .options(
-                selectinload(SolutionProject.problem),
-                selectinload(SolutionProject.lead_student),
-                selectinload(SolutionProject.faculty_mentor),
-                selectinload(SolutionProject.university),
-                selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-                selectinload(SolutionProject.updates).selectinload(ProjectUpdate.author),
-                selectinload(SolutionProject.reviews),
-            )
+            .options(*_project_query_options())
             .outerjoin(ProjectMember, SolutionProject.id == ProjectMember.project_id)
             .where((SolutionProject.lead_student_id == user_id) | (ProjectMember.user_id == user_id))
             .distinct()

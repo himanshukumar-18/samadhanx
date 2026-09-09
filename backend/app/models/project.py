@@ -64,17 +64,87 @@ class SolutionProject(BaseModel):
         "IndustrySupport", back_populates="project", cascade="all, delete-orphan"
     )
 
+    # ---------------------------------------------------------------------------
+    # Computed shortcut properties (all safe against unloaded relations)
+    # ---------------------------------------------------------------------------
+
     @property
     def problem_title(self) -> str | None:
-        return self.problem.title if self.problem else None
+        prob = self.__dict__.get("problem")
+        return prob.title if prob else None
 
     @property
     def problem_category(self) -> str | None:
-        return self.problem.category if self.problem else None
+        prob = self.__dict__.get("problem")
+        return prob.category if prob else None
+
+    @property
+    def problem_location(self) -> str | None:
+        prob = self.__dict__.get("problem")
+        return prob.location if prob else None
+
+    @property
+    def problem_district(self) -> str | None:
+        prob = self.__dict__.get("problem")
+        return prob.district if prob else None
+
+    @property
+    def problem_state(self) -> str | None:
+        prob = self.__dict__.get("problem")
+        return prob.state if prob else None
+
+    @property
+    def problem_status(self) -> str | None:
+        prob = self.__dict__.get("problem")
+        return prob.status.value if prob and hasattr(prob, "status") else None
+
+    @property
+    def problem_impact_level(self) -> str | None:
+        prob = self.__dict__.get("problem")
+        return prob.impact_level.value if prob and hasattr(prob, "impact_level") else None
 
     @property
     def lead_student_name(self) -> str | None:
-        return self.lead_student.full_name if self.lead_student else None
+        lead = self.__dict__.get("lead_student")
+        return lead.full_name if lead else None
+
+    @property
+    def faculty_mentor_name(self) -> str | None:
+        fm = self.__dict__.get("faculty_mentor")
+        return fm.full_name if fm else None
+
+    @property
+    def faculty_mentor_department(self) -> str | None:
+        fm = self.__dict__.get("faculty_mentor")
+        if not fm:
+            return None
+        fp = fm.__dict__.get("faculty_profile") if hasattr(fm, "__dict__") else None
+        if fp and hasattr(fp, "department"):
+            return fp.department
+        return None
+
+    @property
+    def progress(self) -> int:
+        """
+        Derive pod progress percentage from status + updates count.
+
+        - completed           -> 100%
+        - review / pilot      -> min(updates * 12, 95)   [close to finish]
+        - rejected            -> min(updates * 12, 80)   [needs revision]
+        - planning/in_progress/prototype -> min(updates * 12, 80)
+        """
+        if self.status == ProjectStatus.COMPLETED:
+            return 100
+        updates_list = self.__dict__.get("updates")
+        update_count = len(updates_list) if updates_list else 0
+        if self.status in (ProjectStatus.REVIEW, ProjectStatus.PILOT):
+            return min(update_count * 12, 95)
+        return min(update_count * 12, 80)
+
+    @property
+    def member_count(self) -> int:
+        members_list = self.__dict__.get("members")
+        return len(members_list) if members_list else 0
 
 
 class ProjectMember(BaseModel):
@@ -94,8 +164,16 @@ class ProjectMember(BaseModel):
 
     @property
     def member_name(self) -> str | None:
-        return self.user.full_name if self.user else None
+        u = self.__dict__.get("user")
+        return u.full_name if u else None
 
     @property
     def email(self) -> str | None:
-        return self.user.email if self.user else None
+        u = self.__dict__.get("user")
+        return u.email if u else None
+
+    @property
+    def avatar_url(self) -> str | None:
+        u = self.__dict__.get("user")
+        return u.avatar_url if u else None
+

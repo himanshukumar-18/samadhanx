@@ -33,3 +33,10 @@ class ProjectReview(BaseModel):
 
     project: Mapped["SolutionProject"] = relationship("SolutionProject", back_populates="reviews")
     reviewer: Mapped["User"] = relationship("User")
+
+    @property
+    def reviewer_name(self) -> str | None:
+        r = self.__dict__.get("reviewer")
+        return r.full_name if r else None
+
+

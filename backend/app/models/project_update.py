@@ -31,4 +31,6 @@ class ProjectUpdate(BaseModel):
 
     @property
     def author_name(self) -> str | None:
-        return self.author.full_name if self.author else None
+        a = self.__dict__.get("author")
+        return a.full_name if a else None
+

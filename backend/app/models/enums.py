@@ -65,6 +65,11 @@ class NotificationType(StrEnum):
     REVIEW_FEEDBACK = "review_feedback"
     INDUSTRY_SUPPORT = "industry_support"
     SYSTEM_ALERT = "system_alert"
+    # Pod lifecycle events
+    POD_CREATED = "pod_created"
+    POD_MEMBER_JOINED = "pod_member_joined"
+    POD_SUBMITTED_FOR_REVIEW = "pod_submitted_for_review"
+    POD_REVIEW_FEEDBACK = "pod_review_feedback"
 
 
 class Gender(StrEnum):
