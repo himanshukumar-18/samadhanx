@@ -2,13 +2,15 @@ from app.models.account_settings import AccountSettings
 from app.models.audit_log import AuditLog
 from app.models.base import Base, BaseModel
 from app.models.chat import ChatMessage
-from app.models.enums import OrgType, OTPPurpose, RequestStatus, UserRole
+from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
 from app.models.institution_request import InstitutionVerificationRequest
 from app.models.institution_sync import InstitutionSyncError, InstitutionSyncLog
+from app.models.invitation import FacultyInvitation
 from app.models.notification import Notification
 from app.models.otp import OTPVerification
+from app.models.patent import PatentIP
 from app.models.problem import Problem, ProblemComment, ProblemEndorsement
 from app.models.profiles import (
     CitizenProfile,
@@ -30,6 +32,7 @@ __all__ = [
     "BaseModel",
     "UserRole",
     "RequestStatus",
+    "InvitationStatus",
     "OrgType",
     "OTPPurpose",
     "User",
@@ -37,6 +40,7 @@ __all__ = [
     "CitizenProfile",
     "StudentProfile",
     "FacultyProfile",
+    "FacultyInvitation",
     "IndustryProfile",
     "InstitutionMaster",
     "InstitutionVerificationRequest",
@@ -59,6 +63,7 @@ __all__ = [
     "ProjectUpdate",
     "ProjectReview",
     "IndustrySupport",
+    "PatentIP",
     "ChatMessage",
     "AccountSettings",
     "UserProfileDetail",

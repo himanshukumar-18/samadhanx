@@ -21,7 +21,12 @@ import {
   ShieldCheck,
   Sparkles,
   X,
+  GraduationCap,
+  Landmark,
+  BookOpen,
+  FolderGit2,
 } from 'lucide-react';
+import { facultyApi } from '../../../api/faculty';
 import { profileApi } from '../../../api/profile';
 import { problemsApi } from '../../../api/problems';
 import { mapApiProblem } from '../../../lib/problemMapper';
@@ -837,12 +842,395 @@ const tabCls = (active: boolean) =>
   `pb-3 px-4 border-b-2 transition-colors ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`;
 
 // ---------------------------------------------------------------------------
+// Faculty Academic Profile View
+// ---------------------------------------------------------------------------
+
+const FacultyProfileView: React.FC = () => {
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pods' | 'reviews'>('pods');
+
+  const { data: profile, refetch: refetchSelf } = useProfile();
+  const updateProfileMutation = useUpdateProfile();
+
+  const { data: facultyProf, isLoading, refetch } = useQuery({
+    queryKey: ['faculty-profile'],
+    queryFn: () => facultyApi.getFacultyProfile(),
+  });
+
+  const { data: dashboard } = useQuery({
+    queryKey: ['faculty-dashboard'],
+    queryFn: () => facultyApi.getFacultyDashboard(),
+  });
+
+  const [form, setForm] = useState({
+    full_name: '',
+    department: '',
+    designation: '',
+    research_areas: '',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const openEdit = () => {
+    if (facultyProf) {
+      setForm({
+        full_name: facultyProf.full_name || '',
+        department: facultyProf.department || '',
+        designation: facultyProf.designation || '',
+        research_areas: (facultyProf.research_areas || []).join(', '),
+      });
+      setEditOpen(true);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const areas = form.research_areas
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await facultyApi.updateFacultyProfile({
+        full_name: form.full_name.trim() || undefined,
+        department: form.department.trim() || undefined,
+        designation: form.designation.trim() || undefined,
+        research_areas: areas,
+      });
+      toast.success('Academic profile updated successfully!');
+      setEditOpen(false);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['faculty-dashboard'] });
+    } catch {
+      toast.error('Failed to update academic profile.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const file = e.target.files[0];
+    try {
+      setIsUploadingAvatar(true);
+      const res = await profileApi.uploadMedia(file, 'avatar');
+      if (res.url) {
+        await updateProfileMutation.mutateAsync({ avatar_url: res.url });
+        toast.success('Profile photo updated!');
+        await queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+        refetchSelf();
+      }
+    } catch {
+      toast.error('Failed to upload photo.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const assignedProjects = dashboard?.assigned_projects || [];
+  const recentReviews = dashboard?.recent_reviews || [];
+  const displayName = facultyProf?.full_name || user?.email?.split('@')[0] || 'Faculty Mentor';
+
+  return (
+    <div className="space-y-4 pb-16 w-full min-w-0">
+      {/* Academic Header Card */}
+      <Card className="p-5 sm:p-6 space-y-4 border-border rounded-2xl">
+        <div className="flex items-start gap-4">
+          <div className="relative group flex-shrink-0">
+            {isUploadingAvatar ? (
+              <div className="w-20 h-20 rounded-2xl ring-4 ring-border bg-muted flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : profile?.avatar_url || profile?.profile_picture_url ? (
+              <img
+                src={profile.avatar_url || profile.profile_picture_url!}
+                alt={displayName}
+                onError={(e) => { e.currentTarget.src = DEFAULT_AVATAR_FALLBACK; }}
+                className="w-20 h-20 rounded-2xl ring-4 ring-border object-cover"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl ring-4 ring-border bg-primary text-primary-foreground font-black text-xl flex items-center justify-center uppercase">
+                {getInitials(displayName)}
+              </div>
+            )}
+            <label className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white" aria-label="Change photo">
+              <Camera className="w-5 h-5" />
+              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            </label>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-black text-foreground truncate">{displayName}</h1>
+              <Badge variant="faculty">Faculty Mentor</Badge>
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mt-0.5">
+              {facultyProf?.designation || 'Professor'} • {facultyProf?.department || 'Department'}
+            </p>
+            {facultyProf?.university_name && (
+              <div className="flex items-center gap-1.5 text-xs text-primary font-bold mt-1">
+                <Landmark className="w-3.5 h-3.5" />
+                <span>{facultyProf.university_name}</span>
+                {facultyProf.aishe_code && <span className="text-muted-foreground font-normal">• AISHE {facultyProf.aishe_code}</span>}
+              </div>
+            )}
+            {(facultyProf?.university_district || facultyProf?.university_state) && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                <MapPin className="w-3 h-3" />
+                <span>{[facultyProf.university_district, facultyProf.university_state].filter(Boolean).join(', ')}</span>
+              </div>
+            )}
+          </div>
+
+          <Button variant="outline" size="sm" onClick={openEdit} className="flex-shrink-0">
+            <Settings className="w-4 h-4 mr-1.5" /> Edit Academic Info
+          </Button>
+        </div>
+
+        {/* Research Areas / Academic Specializations */}
+        {facultyProf?.research_areas && facultyProf.research_areas.length > 0 && (
+          <div className="pt-2 border-t border-border space-y-1.5">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              Research & Mentorship Areas
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {facultyProf.research_areas.map((area) => (
+                <span
+                  key={area}
+                  className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20"
+                >
+                  {area}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Academic Impact Metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">{facultyProf?.supervised_pods_count ?? 0}</div>
+            <div className="text-[11px] text-muted-foreground">Supervised Pods</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">{facultyProf?.approved_reviews_count ?? 0}</div>
+            <div className="text-[11px] text-muted-foreground">Approved Prototypes</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">{(facultyProf?.research_areas || []).length}</div>
+            <div className="text-[11px] text-muted-foreground">Research Domains</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">{dashboard?.pending_reviews_count ?? 0}</div>
+            <div className="text-[11px] text-muted-foreground">Pending Reviews</div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border text-sm font-bold">
+        <button
+          onClick={() => setActiveTab('pods')}
+          className={`pb-3 px-4 border-b-2 transition-colors ${
+            activeTab === 'pods' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Supervised Solution Pods ({assignedProjects.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`pb-3 px-4 border-b-2 transition-colors ${
+            activeTab === 'reviews' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Academic Evaluations ({recentReviews.length})
+        </button>
+      </div>
+
+      {activeTab === 'pods' && (
+        <div className="space-y-3">
+          {assignedProjects.length === 0 ? (
+            <Card className="text-center py-10 border-border">
+              <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-80" />
+              <h3 className="text-sm font-bold text-foreground">No Supervised Pods Yet</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Visit the Mentoring Portal to adopt campus pods seeking faculty guidance.
+              </p>
+              <a
+                href="/mentoring"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold mt-3"
+              >
+                Go to Mentorship Portal
+              </a>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {assignedProjects.map((p) => (
+                <Card key={p.id} className="p-4 border-border flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h4 className="text-sm font-bold text-foreground">{p.title}</h4>
+                      <Badge variant="default">{p.status.replace('_', ' ')}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Team {p.team_name} • Lead: {p.lead_name}</p>
+                    <p className="text-xs text-foreground/80 mt-1">Problem: {p.problem_title}</p>
+                  </div>
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Updated {new Date(p.updated_at).toLocaleDateString()}</span>
+                    <a href={`/projects/${p.id}`} className="text-primary font-bold inline-flex items-center gap-1 hover:underline">
+                      <FolderGit2 className="w-3.5 h-3.5" /> Workspace
+                    </a>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'reviews' && (
+        <div className="space-y-2">
+          {recentReviews.length === 0 ? (
+            <Card className="text-center py-10 border-border">
+              <Award className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-80" />
+              <h3 className="text-sm font-bold text-foreground">No Reviews Dispatched</h3>
+              <p className="text-xs text-muted-foreground">You have not submitted prototype reviews yet.</p>
+            </Card>
+          ) : (
+            recentReviews.map((rev) => (
+              <Card key={rev.id} className="p-4 border-border flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-foreground">{rev.project_title}</span>
+                    <Badge variant={rev.decision === 'approved' ? 'default' : 'pending'}>{rev.decision.toUpperCase()}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{rev.feedback_text}</p>
+                </div>
+                <span className="text-[11px] text-muted-foreground flex-shrink-0">
+                  {new Date(rev.created_at).toLocaleDateString()}
+                </span>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Edit Academic Profile Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-2xl border-border space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-foreground">Edit Academic Profile</h3>
+              <button onClick={() => setEditOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={form.full_name}
+                  onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
+                  className={inputCls(false)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1">Designation</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Professor / Associate Professor"
+                  value={form.designation}
+                  onChange={(e) => setForm((f) => ({ ...f, designation: e.target.value }))}
+                  className={inputCls(false)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1">Department</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={form.department}
+                  onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+                  className={inputCls(false)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1">
+                  Research & Mentorship Areas (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Artificial Intelligence, IoT, Clean Energy"
+                  value={form.research_areas}
+                  onChange={(e) => setForm((f) => ({ ...f, research_areas: e.target.value }))}
+                  className={inputCls(false)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button variant="outline" size="sm" type="button" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" isLoading={isSaving}>
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main export — routes by role
 // ---------------------------------------------------------------------------
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const isCitizen = user?.role === 'citizen';
+  const isFaculty = user?.role === 'faculty';
 
-  return isCitizen ? <CitizenProfileView /> : <SharedProfileView />;
+  if (isCitizen) return <CitizenProfileView />;
+  if (isFaculty) return <FacultyProfileView />;
+  return <SharedProfileView />;
 };

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #0f172a; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 32px; }
+    .logo { font-size: 22px; font-weight: 800; color: #4f46e5; margin-bottom: 24px; }
+    .badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+    .meta-box { background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 14px; }
+    .btn { display: inline-block; background-color: #4f46e5; color: #ffffff !important; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-top: 20px; }
+    .notice { font-size: 12px; color: #64748b; margin-top: 14px; }
+    .footer { margin-top: 32px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Samadhan<span>X</span></div>
+    <div class="badge">Faculty Mentorship Invitation</div>
+    <h2>Academic Mentorship Invitation from {{ university_name }}</h2>
+    <p>Dear <strong>{{ full_name }}</strong>,</p>
+    <p>You have been nominated and invited by <strong>{{ university_name }}</strong> to join SamadhanX as an Academic Faculty Mentor.</p>
+    
+    <div class="meta-box">
+      <div><strong>Institution:</strong> {{ university_name }}</div>
+      <div><strong>Department:</strong> {{ department }}</div>
+      <div><strong>Designation:</strong> {{ designation }}</div>
+      <div><strong>Role:</strong> Faculty Academic Mentor</div>
+    </div>
+
+    <p>As a faculty mentor, you will guide student innovation pods working on real societal challenges, review technical prototypes, and authorize civic pilot deployments.</p>
+
+    <a href="{{ invite_url }}" class="btn">Accept Invitation & Activate Account</a>
+
+    <p class="notice">
+      ⏱️ This secure invitation link is single-use and will expire in 7 days. If you did not expect this invitation, you can safely ignore this email.
+    </p>
+
+    <div class="footer">
+      SamadhanX — National Governance & Campus Innovation Network
+    </div>
+  </div>
+</body>
+</html>

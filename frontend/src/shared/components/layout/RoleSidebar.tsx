@@ -6,6 +6,7 @@ import { getRoleConfig } from '../../../config/roles';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { notificationsApi } from '../../../api/notifications';
+import { adminApi } from '../../../api/admin';
 import { 
   Home, 
   Compass, 
@@ -100,9 +101,18 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
     enabled: isAuthenticated,
   });
 
+  const { data: adminSummary } = useQuery({
+    queryKey: ['admin-summary-counts'],
+    queryFn: () => adminApi.getSummaryCounts(),
+    enabled: isAuthenticated && activeRole === 'admin',
+    refetchInterval: 30000,
+  });
+
   const unreadCount = Array.isArray(notifications)
     ? notifications.filter((n) => !n.is_read).length
     : 0;
+
+  const counts = adminSummary?.data;
 
   const handlePrimaryAction = () => {
     if (window.location.pathname === '/' || window.location.pathname === config.primaryActionPath) {
@@ -151,9 +161,23 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
           {config.sidebarNav.map((item) => {
             const IconComponent = ICON_MAP[item.iconName] || Home;
             const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
-            const badgeValue = item.id === 'notifications'
-              ? (unreadCount > 0 ? String(unreadCount) : null)
-              : item.badge;
+            
+            let badgeValue: string | null | undefined = item.badge !== undefined && item.badge !== null ? String(item.badge) : undefined;
+            if (item.id === 'notifications') {
+              badgeValue = unreadCount > 0 ? String(unreadCount) : null;
+            } else if (activeRole === 'admin' && counts) {
+              if (item.id === 'governance' && counts.pending_partner_requests > 0) {
+                badgeValue = String(counts.pending_partner_requests);
+              } else if (item.id === 'institution-verifications' && counts.pending_institution_verifications > 0) {
+                badgeValue = String(counts.pending_institution_verifications);
+              } else if (item.id === 'all-problems' && counts.pending_problem_moderations > 0) {
+                badgeValue = String(counts.pending_problem_moderations);
+              } else if (item.id === 'master' && counts.total_verified_institutions > 0) {
+                badgeValue = String(counts.total_verified_institutions);
+              }
+            }
+
+
             const displayLabel = getNavLabel(item, language);
 
             return (
@@ -183,6 +207,7 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
               </a>
             );
           })}
+
         </nav>
       </div>
 

@@ -27,5 +27,30 @@ class IndustrySupportResponse(BaseModel):
     status: RequestStatus
     created_at: datetime
     project_title: str | None = None
+    problem_title: str | None = None
+    university_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectSeekingSupportResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    team_name: str
+    description: str
+    problem_title: str | None = None
+    university_name: str | None = None
+    status: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IndustryPartnershipsOverviewResponse(BaseModel):
+    partnerships: list[IndustrySupportResponse]
+    available_projects: list[ProjectSeekingSupportResponse]
+    total_partnerships_count: int
+    active_grants_count: int
+    pending_reviews_count: int
+    user_role: str
+    company_name: str | None = None

@@ -40,3 +40,24 @@ class IndustrySupport(BaseModel):
 
     project: Mapped["SolutionProject"] = relationship("SolutionProject", back_populates="supports")
     industry_user: Mapped["User"] = relationship("User")
+
+    @property
+    def project_title(self) -> str | None:
+        proj = self.__dict__.get("project")
+        return proj.title if proj else None
+
+    @property
+    def problem_title(self) -> str | None:
+        proj = self.__dict__.get("project")
+        if proj:
+            prob = proj.__dict__.get("problem")
+            return prob.title if prob else None
+        return None
+
+    @property
+    def university_name(self) -> str | None:
+        proj = self.__dict__.get("project")
+        if proj:
+            univ = proj.__dict__.get("university")
+            return univ.university_name if univ else None
+        return None

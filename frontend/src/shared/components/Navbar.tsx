@@ -19,7 +19,7 @@ export const Navbar: React.FC = () => {
   const getRoleDashboardPath = () => {
     switch (role) {
       case 'admin': return '/admin';
-      case 'university': return '/university/faculty';
+      case 'university': return '/dashboard';
       case 'faculty': return '/faculty';
       case 'student': return '/student';
       case 'citizen': return '/citizen';

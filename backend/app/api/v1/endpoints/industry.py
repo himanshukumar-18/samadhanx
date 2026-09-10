@@ -8,6 +8,7 @@ from app.core.deps import get_current_active_user, get_db, require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.industry import (
+    IndustryPartnershipsOverviewResponse,
     IndustrySupportCreate,
     IndustrySupportResponse,
     IndustrySupportUpdateStatus,
@@ -35,9 +36,26 @@ async def get_industry_dashboard(
         "company_name": company_name,
         "contact_person": current_user.industry_profile.point_of_contact_name if current_user.industry_profile else None,
         "designation": current_user.industry_profile.designation if current_user.industry_profile else None,
+        "supported_projects_count": len(my_supports),
         "total_supported_projects_count": len(my_supports),
         "pending_intents_count": sum(1 for s in my_supports if s.status == "pending"),
+        "approved_intents_count": sum(1 for s in my_supports if s.status == "approved"),
     }
+
+
+@router.get("/partnerships", response_model=IndustryPartnershipsOverviewResponse)
+async def get_industry_partnerships(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Returns role-aware industry partnerships and available student projects.
+    - Industry: Their CSR intents and projects seeking funding
+    - University: Industry supports for projects in their university
+    - Student / Faculty / Admin: Platform-wide industry partnerships
+    """
+    service = IndustryService(db)
+    return await service.get_partnerships_overview(current_user)
 
 
 @router.post("/support", response_model=IndustrySupportResponse, status_code=status.HTTP_201_CREATED)

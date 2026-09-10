@@ -13,14 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.public import invalidate_public_universities_cache
 from app.models.audit_log import AuditLog
+from app.models.enums import NotificationType
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
 from app.models.institution_request import InstitutionVerificationRequest
 from app.models.institution_sync import InstitutionSyncError, InstitutionSyncLog
 from app.models.profiles import StudentProfile
+from app.models.user import User
+from app.repositories.notification_repository import NotificationRepository
 from app.schemas.institution import (
     InstitutionRequestReviewAction,
     InstitutionVerificationRequestCreate,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -420,19 +424,27 @@ class InstitutionRequestService:
 
         req.status = "APPROVED"
         req.reviewed_by = admin_id
+
         req.reviewed_at = now_utc
         req.approved_institution_id = master_inst.id
         req.rejection_reason = None
 
         # Link any pending student profiles that registered under this email
-        student_stmt = select(StudentProfile).where(
-            StudentProfile.institution_id == None  # noqa: E711
+        student_stmt = (
+            select(StudentProfile)
+            .join(User, StudentProfile.user_id == User.id)
+            .where(
+                (StudentProfile.institution_id.is_(None))
+                & (User.email == req.submitted_by_email)
+            )
         )
         students = (await self.db.execute(student_stmt)).scalars().all()
         for stud in students:
-            if stud.user and stud.user.email == req.submitted_by_email:
-                stud.institution_id = master_inst.id
-                stud.user.is_approved = True
+            stud.institution_id = master_inst.id
+            user_stmt = select(User).where(User.id == stud.user_id)
+            u = (await self.db.execute(user_stmt)).scalar_one_or_none()
+            if u:
+                u.is_approved = True
 
         audit = AuditLog(
             actor_id=admin_id,
@@ -442,6 +454,21 @@ class InstitutionRequestService:
             metadata_json={"request_id": str(req.id), "institution_name": master_inst.name},
         )
         self.db.add(audit)
+
+        # Notify the applicant if user account exists
+        submitting_user = (
+            await self.db.execute(select(User).where(User.email == req.submitted_by_email))
+        ).scalar_one_or_none()
+        if submitting_user:
+            notif_repo = NotificationRepository(self.db)
+            await notif_repo.create_notification(
+                recipient_id=submitting_user.id,
+                title="Institution Verified & Added",
+                message=f"Your requested institution '{master_inst.name}' has been verified and added to the official AISHE/UGC Master.",
+                type=NotificationType.SYSTEM_ALERT,
+                link="/student",
+            )
+
         await self.db.commit()
 
         invalidate_public_universities_cache()
@@ -476,5 +503,20 @@ class InstitutionRequestService:
             metadata_json={"reason": req.rejection_reason},
         )
         self.db.add(audit)
+
+        # Notify the applicant if user account exists
+        submitting_user = (
+            await self.db.execute(select(User).where(User.email == req.submitted_by_email))
+        ).scalar_one_or_none()
+        if submitting_user:
+            notif_repo = NotificationRepository(self.db)
+            await notif_repo.create_notification(
+                recipient_id=submitting_user.id,
+                title="Institution Verification Decision",
+                message=f"Your request for '{req.requested_name}' could not be verified: {req.rejection_reason}",
+                type=NotificationType.SYSTEM_ALERT,
+            )
+
         await self.db.commit()
         return req
+

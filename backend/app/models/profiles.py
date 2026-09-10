@@ -10,6 +10,7 @@ from app.models.base import BaseModel
 
 if TYPE_CHECKING:
     from app.models.institution_master import InstitutionMaster
+    from app.models.invitation import FacultyInvitation
     from app.models.user import User
 
 
@@ -31,6 +32,7 @@ class UniversityProfile(BaseModel):
     institution_master: Mapped["InstitutionMaster | None"] = relationship("InstitutionMaster", back_populates="university_profiles")
     students: Mapped[list["StudentProfile"]] = relationship("StudentProfile", back_populates="university")
     faculty_members: Mapped[list["FacultyProfile"]] = relationship("FacultyProfile", back_populates="university")
+    faculty_invitations: Mapped[list["FacultyInvitation"]] = relationship("FacultyInvitation", back_populates="university", cascade="all, delete-orphan")
 
 
 class CitizenProfile(BaseModel):

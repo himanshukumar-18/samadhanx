@@ -26,12 +26,16 @@ def sync_institutions_task(self, dataset_content: str, file_type: str = "csv", s
             }
 
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            task = asyncio.create_task(_async_sync())
-            return loop.run_until_complete(task)
-        else:
+        try:
             return asyncio.run(_async_sync())
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(_async_sync())
+            finally:
+                loop.close()
     except Exception as exc:
         logger.error(f"[INSTITUTION SYNC TASK ERROR] {exc}")
         raise self.retry(exc=exc) from exc
+

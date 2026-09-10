@@ -60,14 +60,14 @@ async def get_current_user(
             detail={"code": "INVALID_USER_ID", "message": "Token user ID format is invalid."},
         ) from err
 
-    from app.models.profiles import StudentProfile
+    from app.models.profiles import StudentProfile, FacultyProfile
     query = (
         select(User)
         .options(
             selectinload(User.citizen_profile),
             selectinload(User.student_profile).selectinload(StudentProfile.university),
             selectinload(User.student_profile).selectinload(StudentProfile.institution_master),
-            selectinload(User.faculty_profile),
+            selectinload(User.faculty_profile).selectinload(FacultyProfile.university),
             selectinload(User.industry_profile),
             selectinload(User.university_profile),
             selectinload(User.restricted_request),

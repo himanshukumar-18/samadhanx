@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Inbox,
-  PlusCircle
+  PlusCircle,
+  GraduationCap
 } from 'lucide-react';
 import { problemsApi } from '../../../api/problems';
 import { projectsApi } from '../../../api/projects';
@@ -25,6 +26,7 @@ import toast from 'react-hot-toast';
 export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId: propId }) => {
   const { user } = useAuthStore();
   const isCitizenRole = !user || (user.role as string) === 'citizen' || (user.role as string) === 'community';
+  const isFaculty = user?.role === 'faculty';
 
   const pathParts = window.location.pathname.split('/');
   const urlId = pathParts[pathParts.length - 1];
@@ -213,7 +215,19 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
             <span>{problem.endorsements?.length || 0} Endorsements</span>
           </button>
 
-          {!isCitizenRole ? (
+          {isFaculty ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                window.location.href = '/mentoring';
+              }}
+              className="font-bold text-sm min-h-[44px] px-5"
+              leftIcon={<GraduationCap className="w-4 h-4" />}
+            >
+              Mentor Campus Pods for this Challenge
+            </Button>
+          ) : !isCitizenRole ? (
             <Button
               variant="primary"
               size="sm"

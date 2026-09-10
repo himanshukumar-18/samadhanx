@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import (
     APIRouter,
@@ -11,6 +11,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from pydantic import ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_active_user, get_db
@@ -18,13 +19,14 @@ from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.problem import ProblemResponse
 from app.schemas.profile_detail import (
+    CitizenProfileUpdate,
     PublicUserProfileResponse,
     UserProfileDetailResponse,
     UserProfileUpdate,
 )
 from app.services.cloudinary_service import CloudinaryService
 from app.services.problem_service import ProblemService
-from app.services.profile_service import ProfileService
+from app.services.profile_service import ProfileService, sanitize_bio
 
 router = APIRouter(prefix="/profile", tags=["User Profiles & Media"])
 
@@ -98,6 +100,23 @@ async def get_user_public_problems(
     return [await service.enrich_for_viewer(p, current_user) for p in problems]
 
 
+class CitizenMeUpdate(CitizenProfileUpdate):
+    model_config = ConfigDict(extra="forbid")
+    headline: str | None = Field(None, max_length=120)
+    website_url: str | None = None
+    github_url: str | None = None
+    linkedin_url: str | None = None
+
+    @field_validator("website_url", "github_url", "linkedin_url", mode="before")
+    @classmethod
+    def validate_url(cls, v: Any) -> Any:
+        if v is not None and isinstance(v, str):
+            v_clean = v.strip()
+            if not (v_clean.startswith("http://") or v_clean.startswith("https://")):
+                raise ValueError("URL must start with http:// or https://")
+        return v
+
+
 @router.patch("/me", response_model=UserProfileDetailResponse)
 async def update_my_profile(
     payload: dict,
@@ -105,19 +124,44 @@ async def update_my_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
-    Shared profile update for non-citizen roles (Student, Faculty, Industry, University).
-    Citizens must use PATCH /citizen/profile instead.
+    Shared profile update for all authenticated roles.
     """
-    if current_user.role == UserRole.CITIZEN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "USE_CITIZEN_ENDPOINT",
-                "message": "Citizens must use PATCH /api/v1/citizen/profile to update their profile.",
-            },
-        )
-
     service = ProfileService(db)
+    if current_user.role == UserRole.CITIZEN:
+        try:
+            citizen_data = CitizenMeUpdate.model_validate(payload)
+            update_dict = citizen_data.model_dump(exclude_unset=True)
+            if "bio" in update_dict and update_dict["bio"]:
+                update_dict["bio"] = sanitize_bio(update_dict["bio"])
+            await service.repo.update_citizen_profile(current_user.id, update_dict)
+            await service.repo.update_detail(current_user.id, update_dict)
+            await db.commit()
+            return await service.get_profile(current_user, current_user.id)
+        except ValidationError as ve:
+            errors = ve.errors()
+            for err in errors:
+                loc_field = err["loc"][-1] if err["loc"] else ""
+                err_msg = str(err.get("msg", ""))
+                if "url" in str(loc_field).lower() or "url" in err_msg.lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "INVALID_PROFILE_URL", "message": f"Invalid URL for field {loc_field}: {err_msg}"},
+                    )
+                if "headline" in str(loc_field).lower() and "max_length" in err.get("type", ""):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "HEADLINE_TOO_LONG", "message": "Headline exceeds maximum length of 120 characters."},
+                    )
+                if "bio" in str(loc_field).lower() and "max_length" in err.get("type", ""):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "BIO_TOO_LONG", "message": "Bio exceeds maximum length of 500 characters."},
+                    )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "PROFILE_UPDATE_FAILED", "message": "Invalid profile update payload.", "errors": errors},
+            )
+
     update_data = UserProfileUpdate(**payload)
     return await service.update_my_profile(current_user=current_user, data=update_data)
 

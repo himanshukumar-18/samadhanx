@@ -14,6 +14,12 @@ class RequestStatus(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
 
+class InvitationStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
 class OrgType(StrEnum):
     UNIVERSITY = "university"
     INDUSTRY = "industry"

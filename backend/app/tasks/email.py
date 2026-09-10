@@ -116,3 +116,32 @@ def send_rejection_email_task(self, to_email: str, org_name: str, reason: str | 
     except Exception as exc:
         logger.error(f"[EMAIL ERROR] Failed to send Rejection email to {to_email}: {exc}")
         raise self.retry(exc=exc) from exc
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=5)
+def send_faculty_invitation_email_task(
+    self,
+    to_email: str,
+    full_name: str,
+    university_name: str,
+    department: str,
+    designation: str,
+    invite_url: str,
+):
+    try:
+        template = env.get_template("faculty_invitation.html")
+        html_content = template.render(
+            full_name=full_name,
+            university_name=university_name,
+            department=department,
+            designation=designation,
+            invite_url=invite_url,
+        )
+        subject = f"Faculty Mentorship Invitation: Join {university_name} on SamadhanX"
+
+        send_smtp_email(to_email=to_email, subject=subject, html_content=html_content)
+        logger.info(f"[EMAIL DISPATCH] Sent Faculty Invitation email to {to_email} ({full_name}) for {university_name}")
+        return {"status": "sent", "to": to_email, "type": "faculty_invitation"}
+    except Exception as exc:
+        logger.error(f"[EMAIL ERROR] Failed to send Faculty Invitation email to {to_email}: {exc}")
+        raise self.retry(exc=exc) from exc

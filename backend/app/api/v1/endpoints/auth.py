@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -17,12 +18,14 @@ from app.core.security import (
     verify_password,
 )
 from app.models.audit_log import AuditLog
-from app.models.enums import OrgType, OTPPurpose, RequestStatus, UserRole
+from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.institution_master import InstitutionMaster
 from app.models.institution_request import InstitutionVerificationRequest
+from app.models.invitation import FacultyInvitation
 from app.models.otp import OTPVerification
 from app.models.profiles import (
     CitizenProfile,
+    FacultyProfile,
     IndustryProfile,
     StudentProfile,
     UniversityProfile,
@@ -40,8 +43,10 @@ from app.schemas.auth import (
 )
 from app.schemas.common import StandardApiResponse
 from app.schemas.user import (
+    AcceptInvitationRequest,
     CitizenRegister,
     IndustryRequestRegister,
+    PublicInvitationInfo,
     StudentRegister,
     UniversityListItem,
     UniversityRequestRegister,
@@ -271,6 +276,54 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
             detail={"code": "EMAIL_EXISTS", "message": "An account with this email already exists."},
         )
 
+    target_inst = None
+    if data.institution_id:
+        target_inst = (await db.execute(select(InstitutionMaster).where(InstitutionMaster.id == data.institution_id))).scalar_one_or_none()
+        if not target_inst:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INSTITUTION_NOT_FOUND", "message": "The selected institution does not exist in our master registry."},
+            )
+
+        # Prevent duplicate approved registrations for the same institution
+        existing_univ = (
+            await db.execute(
+                select(UniversityProfile).where(
+                    and_(
+                        UniversityProfile.institution_id == data.institution_id,
+                        UniversityProfile.is_approved.is_(True),
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+        if existing_univ:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "INSTITUTION_ALREADY_REGISTERED", "message": f"An approved university portal is already registered for '{existing_univ.university_name}'."},
+            )
+
+    aishe_code = (target_inst.aishe_code if target_inst and target_inst.aishe_code else data.aishe_code) or None
+    if aishe_code:
+        dup_aishe = (
+            await db.execute(
+                select(UniversityProfile).where(
+                    and_(
+                        UniversityProfile.aishe_code == aishe_code.strip(),
+                        UniversityProfile.is_approved.is_(True),
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+        if dup_aishe:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "AISHE_ALREADY_REGISTERED", "message": f"An institutional portal with AISHE code '{aishe_code}' is already active ({dup_aishe.university_name})."},
+            )
+
+    univ_name = target_inst.name if target_inst else data.university_name
+    state_val = target_inst.state if target_inst else data.state
+    district_val = target_inst.district if target_inst else data.district
+
     user = User(
         email=data.email.lower(),
         hashed_password=get_password_hash(data.password),
@@ -284,10 +337,11 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
 
     profile = UniversityProfile(
         user_id=user.id,
-        university_name=data.university_name,
-        aishe_code=data.aishe_code,
-        state=data.state,
-        district=data.district,
+        institution_id=target_inst.id if target_inst else None,
+        university_name=univ_name,
+        aishe_code=aishe_code,
+        state=state_val,
+        district=district_val,
         nodal_officer_name=data.nodal_officer_name,
         official_email=data.official_email.lower(),
         website=data.website,
@@ -298,8 +352,8 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
     request_record = RestrictedAccountRequest(
         user_id=user.id,
         org_type=OrgType.UNIVERSITY,
-        org_name=data.university_name,
-        registration_identifier=data.aishe_code,
+        org_name=univ_name,
+        registration_identifier=aishe_code,
         nodal_officer_name=data.nodal_officer_name,
         official_email=data.official_email.lower(),
         status=RequestStatus.PENDING,
@@ -314,7 +368,7 @@ async def register_university_request(data: UniversityRequestRegister, db: Async
         expires_at=datetime.now(UTC) + timedelta(minutes=10),
     )
     db.add(otp_record)
-    await record_audit(db, "REQUEST_UNIVERSITY_ACCESS", "request", str(request_record.id), user.id, {"org_name": data.university_name})
+    await record_audit(db, "REQUEST_UNIVERSITY_ACCESS", "request", str(request_record.id), user.id, {"org_name": univ_name})
     await db.commit()
 
     try:
@@ -404,6 +458,7 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
         .options(
             selectinload(User.citizen_profile),
             selectinload(User.student_profile),
+            selectinload(User.faculty_profile),
             selectinload(User.university_profile),
             selectinload(User.industry_profile),
         )
@@ -468,8 +523,10 @@ async def verify_otp(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db))
         full_name = user.citizen_profile.full_name
     elif user.student_profile:
         full_name = user.student_profile.full_name
+    elif user.faculty_profile:
+        full_name = user.faculty_profile.full_name
 
-    if user.role in [UserRole.CITIZEN, UserRole.STUDENT]:
+    if user.role in [UserRole.CITIZEN, UserRole.STUDENT, UserRole.FACULTY]:
         try:
             send_welcome_email_task.delay(user.email, full_name, user.role.value)
         except Exception:
@@ -776,4 +833,180 @@ async def get_me(current_user: User = Depends(get_current_user)):
             full_name=full_name,
             organization_name=org_name,
         ),
+    )
+
+
+# 14. Validate Faculty Invitation Token
+@router.get("/invitations/{token}", response_model=StandardApiResponse[PublicInvitationInfo])
+async def get_invitation_details(token: str, db: AsyncSession = Depends(get_db)):
+    token_hash = hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
+    query = (
+        select(FacultyInvitation)
+        .options(selectinload(FacultyInvitation.university))
+        .where(FacultyInvitation.token_hash == token_hash)
+    )
+    result = await db.execute(query)
+    invitation = result.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "INVITATION_NOT_FOUND", "message": "This invitation link is invalid or does not exist."},
+        )
+
+    if invitation.status == InvitationStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_ALREADY_ACCEPTED", "message": "This invitation has already been accepted. Please sign in."},
+        )
+
+    if invitation.status == InvitationStatus.REVOKED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_REVOKED", "message": "This invitation has been revoked by your university administrator."},
+        )
+
+    expires = invitation.expires_at if invitation.expires_at.tzinfo else invitation.expires_at.replace(tzinfo=UTC)
+    if datetime.now(UTC) > expires:
+        if invitation.status != InvitationStatus.EXPIRED:
+            invitation.status = InvitationStatus.EXPIRED
+            await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_EXPIRED", "message": "This invitation link has expired. Please request a new invitation from your institution."},
+        )
+
+    univ_name = invitation.university.university_name if invitation.university else "Partner University"
+
+    return StandardApiResponse(
+        success=True,
+        data=PublicInvitationInfo(
+            university_name=univ_name,
+            email=invitation.email,
+            full_name=invitation.full_name,
+            department=invitation.department,
+            designation=invitation.designation,
+            expires_at=invitation.expires_at,
+            is_valid=True,
+        ),
+        message="Invitation is valid.",
+    )
+
+
+# 15. Accept Faculty Invitation & Register Account
+@router.post("/invitations/{token}/accept", response_model=StandardApiResponse[dict])
+async def accept_faculty_invitation(token: str, data: AcceptInvitationRequest, db: AsyncSession = Depends(get_db)):
+    token_hash = hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
+    query = (
+        select(FacultyInvitation)
+        .options(selectinload(FacultyInvitation.university))
+        .where(FacultyInvitation.token_hash == token_hash)
+    )
+    result = await db.execute(query)
+    invitation = result.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "INVITATION_NOT_FOUND", "message": "This invitation link is invalid or does not exist."},
+        )
+
+    if invitation.status == InvitationStatus.ACCEPTED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_ALREADY_ACCEPTED", "message": "This invitation has already been accepted. Please sign in."},
+        )
+
+    if invitation.status == InvitationStatus.REVOKED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_REVOKED", "message": "This invitation has been revoked by your university administrator."},
+        )
+
+    expires = invitation.expires_at if invitation.expires_at.tzinfo else invitation.expires_at.replace(tzinfo=UTC)
+    if datetime.now(UTC) > expires:
+        if invitation.status != InvitationStatus.EXPIRED:
+            invitation.status = InvitationStatus.EXPIRED
+            await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVITATION_EXPIRED", "message": "This invitation link has expired. Please request a new invitation from your institution."},
+        )
+
+    # Check if a user with this email already exists
+    existing_user = (await db.execute(select(User).where(User.email == invitation.email.lower()))).scalar_one_or_none()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "EMAIL_EXISTS", "message": "An active account with this email address already exists. Please log in."},
+        )
+
+    # Create Faculty User
+    faculty_user = User(
+        email=invitation.email.lower(),
+        hashed_password=get_password_hash(data.password),
+        role=UserRole.FACULTY,
+        is_verified=False,
+        is_active=True,
+        is_approved=True,
+    )
+    db.add(faculty_user)
+    await db.flush()
+
+    # Create Faculty Profile linked to University
+    final_full_name = data.full_name.strip() if data.full_name and data.full_name.strip() else invitation.full_name
+    final_dept = data.department.strip() if data.department and data.department.strip() else invitation.department
+    final_desig = data.designation.strip() if data.designation and data.designation.strip() else invitation.designation
+    final_research = data.research_areas if data.research_areas is not None else invitation.research_areas or []
+
+    faculty_profile = FacultyProfile(
+        user_id=faculty_user.id,
+        university_id=invitation.university_id,
+        created_by=invitation.invited_by,
+        full_name=final_full_name,
+        department=final_dept,
+        designation=final_desig,
+        research_areas=final_research,
+    )
+    db.add(faculty_profile)
+
+    # Update Invitation state
+    invitation.status = InvitationStatus.ACCEPTED
+    invitation.accepted_at = datetime.now(UTC)
+
+    # Generate 6-digit OTP for email verification
+    otp_code = generate_otp(6)
+    otp_record = OTPVerification(
+        email=faculty_user.email,
+        otp_code=otp_code,
+        purpose=OTPPurpose.REGISTRATION,
+        expires_at=datetime.now(UTC) + timedelta(minutes=10),
+    )
+    db.add(otp_record)
+
+    univ_name = invitation.university.university_name if invitation.university else "Partner University"
+    await record_audit(
+        db,
+        "ACCEPT_FACULTY_INVITATION",
+        "user",
+        str(faculty_user.id),
+        faculty_user.id,
+        {"email": faculty_user.email, "university": univ_name, "faculty_name": final_full_name},
+    )
+    await db.commit()
+
+    try:
+        send_otp_email_task.delay(faculty_user.email, otp_code, "registration")
+    except Exception:
+        pass
+
+    return StandardApiResponse(
+        success=True,
+        data={
+            "user_id": str(faculty_user.id),
+            "email": faculty_user.email,
+            "role": faculty_user.role.value,
+            "university": univ_name,
+        },
+        message="Faculty account created successfully! Please verify your email with the 6-digit OTP.",
     )

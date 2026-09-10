@@ -30,12 +30,62 @@ class IndustryRepository:
         return result.scalar_one_or_none()
 
     async def list_by_industry_user(self, industry_user_id: uuid.UUID) -> Sequence[IndustrySupport]:
+        from app.models.project import SolutionProject
         query = (
             select(IndustrySupport)
-            .options(selectinload(IndustrySupport.project))
+            .options(
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.problem),
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.university),
+                selectinload(IndustrySupport.industry_user),
+            )
             .where(IndustrySupport.industry_user_id == industry_user_id)
             .order_by(IndustrySupport.created_at.desc())
         )
+        result = await self.db.execute(query)
+        return result.scalars().all()
+
+    async def list_by_university(self, university_id: uuid.UUID) -> Sequence[IndustrySupport]:
+        from app.models.project import SolutionProject
+        query = (
+            select(IndustrySupport)
+            .join(SolutionProject, IndustrySupport.project_id == SolutionProject.id)
+            .options(
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.problem),
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.university),
+                selectinload(IndustrySupport.industry_user),
+            )
+            .where(SolutionProject.university_id == university_id)
+            .order_by(IndustrySupport.created_at.desc())
+        )
+        result = await self.db.execute(query)
+        return result.scalars().all()
+
+    async def list_all_partnerships(self) -> Sequence[IndustrySupport]:
+        from app.models.project import SolutionProject
+        query = (
+            select(IndustrySupport)
+            .options(
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.problem),
+                selectinload(IndustrySupport.project).selectinload(SolutionProject.university),
+                selectinload(IndustrySupport.industry_user),
+            )
+            .order_by(IndustrySupport.created_at.desc())
+        )
+        result = await self.db.execute(query)
+        return result.scalars().all()
+
+    async def list_available_projects(self, university_id: uuid.UUID | None = None, limit: int = 20):
+        from app.models.project import SolutionProject
+        query = (
+            select(SolutionProject)
+            .options(
+                selectinload(SolutionProject.problem),
+                selectinload(SolutionProject.university),
+            )
+        )
+        if university_id:
+            query = query.where(SolutionProject.university_id == university_id)
+        query = query.order_by(SolutionProject.created_at.desc()).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
 

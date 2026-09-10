@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: Literal["development", "test", "staging", "production"] = "development"
     DEBUG: bool = False
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # Security
     SECRET_KEY: str = "samadhanx-dev-secret-key-do-not-use-in-production-min-32-chars"
