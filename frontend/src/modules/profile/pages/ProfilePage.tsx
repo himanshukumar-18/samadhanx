@@ -25,9 +25,18 @@ import {
   Landmark,
   BookOpen,
   FolderGit2,
+  Github,
+  Linkedin,
+  Globe,
+  Code2,
+  Rocket,
+  Plus,
 } from 'lucide-react';
 import { facultyApi } from '../../../api/faculty';
 import { profileApi } from '../../../api/profile';
+import { studentApi } from '../../../api/student';
+import { podsApi } from '../../../api/pods';
+import { PodCard } from '../../student/components/PodCard';
 import { problemsApi } from '../../../api/problems';
 import { mapApiProblem } from '../../../lib/problemMapper';
 import { ProblemPost } from '../../feed/components/ProblemPost';
@@ -1222,6 +1231,823 @@ const FacultyProfileView: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
+// Student Innovator Profile View — Portfolio & Engineering Layout
+// ---------------------------------------------------------------------------
+
+const POPULAR_SKILL_SUGGESTIONS = [
+  'Python',
+  'React',
+  'TypeScript',
+  'FastAPI',
+  'Node.js',
+  'Machine Learning',
+  'Computer Vision',
+  'IoT & LoRaWAN',
+  'Embedded Systems',
+  'Robotics',
+  'Docker',
+  'PostgreSQL',
+  'CAD & 3D Modeling',
+  'Data Science',
+  'Mobile Development',
+];
+
+const StudentProfileView: React.FC = () => {
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pods' | 'badges'>('pods');
+
+  const { data: studentProf, isLoading, refetch } = useQuery({
+    queryKey: ['student-profile'],
+    queryFn: () => studentApi.getStudentProfile(),
+  });
+
+  const { data: pods = [], isLoading: podsLoading } = useQuery({
+    queryKey: ['my-problem-pods'],
+    queryFn: () => podsApi.listMyPods(),
+  });
+
+  // Edit form state
+  const [form, setForm] = useState<{
+    full_name: string;
+    headline: string;
+    department: string;
+    graduation_year: string;
+    enrollment_number: string;
+    bio: string;
+    github_url: string;
+    linkedin_url: string;
+    portfolio_url: string;
+    skills: string[];
+  }>({
+    full_name: '',
+    headline: '',
+    department: '',
+    graduation_year: '',
+    enrollment_number: '',
+    bio: '',
+    github_url: '',
+    linkedin_url: '',
+    portfolio_url: '',
+    skills: [],
+  });
+
+  const [newSkillInput, setNewSkillInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const openEdit = () => {
+    if (studentProf) {
+      setForm({
+        full_name: studentProf.full_name || '',
+        headline: studentProf.headline || '',
+        department: studentProf.department || '',
+        graduation_year: studentProf.graduation_year ? String(studentProf.graduation_year) : '',
+        enrollment_number: studentProf.enrollment_number || '',
+        bio: studentProf.bio || '',
+        github_url: studentProf.github_url || '',
+        linkedin_url: studentProf.linkedin_url || '',
+        portfolio_url: studentProf.portfolio_url || '',
+        skills: studentProf.skills || [],
+      });
+      setNewSkillInput('');
+      setEditOpen(true);
+    }
+  };
+
+  const handleAddSkill = (skillText?: string) => {
+    const raw = (skillText || newSkillInput).trim();
+    if (!raw) return;
+    const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+    setForm((prev) => {
+      const merged = [...prev.skills];
+      parts.forEach((p) => {
+        if (!merged.includes(p) && merged.length < 25) {
+          merged.push(p);
+        }
+      });
+      return { ...prev, skills: merged };
+    });
+    setNewSkillInput('');
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setForm((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s !== skillToRemove),
+    }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.full_name.trim() || form.full_name.trim().length < 2) {
+      toast.error('Full name must be at least 2 characters long.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await studentApi.updateStudentProfile({
+        full_name: form.full_name.trim(),
+        headline: form.headline.trim() || undefined,
+        department: form.department.trim() || undefined,
+        graduation_year: form.graduation_year ? parseInt(form.graduation_year, 10) : undefined,
+        enrollment_number: form.enrollment_number.trim() || undefined,
+        bio: form.bio.trim() || undefined,
+        skills: form.skills,
+        github_url: form.github_url.trim() || undefined,
+        linkedin_url: form.linkedin_url.trim() || undefined,
+        portfolio_url: form.portfolio_url.trim() || undefined,
+      });
+      toast.success('Innovator profile updated successfully!');
+      setEditOpen(false);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.detail?.message ||
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to save student profile.';
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const file = e.target.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5 MB.');
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Only JPEG, PNG, WebP, or GIF images are accepted.');
+      return;
+    }
+    try {
+      setIsUploadingAvatar(true);
+      const res = await profileApi.uploadMedia(file, 'avatar');
+      if (res.url) {
+        toast.success('Profile photo updated!');
+        queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+        queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+        refetch();
+      }
+    } catch {
+      toast.error('Failed to upload profile photo.');
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const displayName = studentProf?.full_name || user?.full_name || user?.email?.split('@')[0] || 'Student Innovator';
+  const avatarUrl = studentProf?.avatar_url;
+
+  return (
+    <div className="space-y-6 pb-16 w-full min-w-0">
+      {/* ── Student Header Card ── */}
+      <Card className="p-5 sm:p-7 space-y-5 border-border rounded-3xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-5">
+          {/* Avatar with photo upload */}
+          <div className="relative group flex-shrink-0 self-center sm:self-start">
+            {isUploadingAvatar ? (
+              <div className="w-24 h-24 rounded-3xl ring-4 ring-border bg-muted flex items-center justify-center">
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
+              </div>
+            ) : avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                onError={(e) => {
+                  e.currentTarget.src = DEFAULT_AVATAR_FALLBACK;
+                }}
+                className="w-24 h-24 rounded-3xl ring-4 ring-border object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-3xl ring-4 ring-border bg-primary text-primary-foreground font-black text-2xl flex items-center justify-center uppercase">
+                {getInitials(displayName)}
+              </div>
+            )}
+            <label
+              className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white"
+              aria-label="Change profile photo"
+            >
+              <Camera className="w-6 h-6" />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarUpload}
+                className="hidden"
+                disabled={isUploadingAvatar}
+              />
+            </label>
+          </div>
+
+          {/* Core Info */}
+          <div className="flex-1 min-w-0 space-y-2 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap justify-center sm:justify-start">
+              <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight truncate">
+                {displayName}
+              </h1>
+              <Badge variant="student" className="uppercase text-[11px] font-bold px-2.5 py-0.5">
+                Student Innovator
+              </Badge>
+            </div>
+
+            {studentProf?.headline && (
+              <p className="text-sm font-semibold text-primary">
+                {studentProf.headline}
+              </p>
+            )}
+
+            {/* Academic Affiliation */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground justify-center sm:justify-start pt-0.5">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <GraduationCap className="w-4 h-4 text-primary shrink-0" />
+                {studentProf?.department || 'Department of Engineering'}
+                {studentProf?.graduation_year && (
+                  <span className="text-muted-foreground font-normal">
+                    • Class of {studentProf.graduation_year}
+                  </span>
+                )}
+              </span>
+
+              {studentProf?.university_name && (
+                <span className="flex items-center gap-1 font-medium text-foreground">
+                  <Landmark className="w-3.5 h-3.5 text-primary shrink-0" />
+                  {studentProf.university_name}
+                  {studentProf.aishe_code && (
+                    <span className="text-muted-foreground font-normal">
+                      (AISHE {studentProf.aishe_code})
+                    </span>
+                  )}
+                </span>
+              )}
+
+              {(studentProf?.university_district || studentProf?.university_state) && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+                  {[studentProf.university_district, studentProf.university_state].filter(Boolean).join(', ')}
+                </span>
+              )}
+
+              {studentProf?.enrollment_number && (
+                <span className="bg-secondary px-2 py-0.5 rounded-md font-mono text-[11px] text-secondary-foreground">
+                  ID: {studentProf.enrollment_number}
+                </span>
+              )}
+            </div>
+
+            {/* Social & Portfolio links */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 justify-center sm:justify-start">
+              {studentProf?.github_url && (
+                <a
+                  href={studentProf.github_url.startsWith('http') ? studentProf.github_url : `https://${studentProf.github_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-secondary/80 hover:bg-secondary text-secondary-foreground text-xs font-semibold border border-border transition-colors"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  GitHub ↗
+                </a>
+              )}
+
+              {studentProf?.linkedin_url && (
+                <a
+                  href={studentProf.linkedin_url.startsWith('http') ? studentProf.linkedin_url : `https://${studentProf.linkedin_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-semibold border border-blue-500/20 transition-colors"
+                >
+                  <Linkedin className="w-3.5 h-3.5" />
+                  LinkedIn ↗
+                </a>
+              )}
+
+              {studentProf?.portfolio_url && (
+                <a
+                  href={studentProf.portfolio_url.startsWith('http') ? studentProf.portfolio_url : `https://${studentProf.portfolio_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-semibold border border-purple-500/20 transition-colors"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  Portfolio ↗
+                </a>
+              )}
+
+              {!studentProf?.github_url && !studentProf?.linkedin_url && !studentProf?.portfolio_url && (
+                <button
+                  type="button"
+                  onClick={openEdit}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors italic"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add GitHub & portfolio links
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Edit Profile Button */}
+          <Button variant="outline" size="sm" onClick={openEdit} className="shrink-0 self-center sm:self-start">
+            <Settings className="w-4 h-4 mr-1.5" />
+            Edit Profile
+          </Button>
+        </div>
+
+        {/* Bio / Innovation statement */}
+        {studentProf?.bio && (
+          <div className="pt-3 border-t border-border">
+            <p className="text-sm text-foreground leading-relaxed">
+              {studentProf.bio}
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* ── Skills & Tech Stack Card ── */}
+      <Card className="p-5 sm:p-6 border-border rounded-3xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black text-foreground flex items-center gap-2">
+            <Code2 className="w-4 h-4 text-primary" /> Technical Skills & Competencies ({studentProf?.skills?.length || 0})
+          </h2>
+          <button
+            type="button"
+            onClick={openEdit}
+            className="text-xs font-bold text-primary hover:underline"
+          >
+            Manage Skills
+          </button>
+        </div>
+
+        {studentProf?.skills && studentProf.skills.length > 0 ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {studentProf.skills.map((skill, idx) => (
+              <span
+                key={idx}
+                className="px-3 py-1 text-xs font-semibold rounded-xl bg-primary/10 text-primary border border-primary/20"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="py-4 text-center text-xs text-muted-foreground">
+            No technical skills listed yet. Click <strong>Manage Skills</strong> to highlight your engineering toolkit!
+          </div>
+        )}
+      </Card>
+
+      {/* ── Innovation Metrics KPI Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Rocket className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">
+              {studentProf?.active_pods_count ?? 0}
+            </div>
+            <div className="text-[11px] text-muted-foreground">Active Solution Pods</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">
+              {studentProf?.in_review_pods_count ?? 0}
+            </div>
+            <div className="text-[11px] text-muted-foreground">Under Faculty Review</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">
+              {studentProf?.completed_pods_count ?? 0}
+            </div>
+            <div className="text-[11px] text-muted-foreground">Completed Prototypes</div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-border rounded-2xl flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <FolderGit2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-foreground">
+              {studentProf?.total_pods_count ?? 0}
+            </div>
+            <div className="text-[11px] text-muted-foreground">Total Pods Portfolio</div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Tabs: Pods / Badges ── */}
+      <div className="flex border-b border-border text-sm font-bold">
+        <button
+          onClick={() => setActiveTab('pods')}
+          className={`pb-3 px-4 border-b-2 transition-colors ${
+            activeTab === 'pods'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          My Problem Pods ({pods.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('badges')}
+          className={`pb-3 px-4 border-b-2 transition-colors ${
+            activeTab === 'badges'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Innovation Credentials & Badges
+        </button>
+      </div>
+
+      {activeTab === 'pods' && (
+        <div className="space-y-4">
+          {podsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : pods.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {pods.map((pod) => (
+                <PodCard key={pod.id} pod={pod} currentUserId={user?.id} />
+              ))}
+            </div>
+          ) : (
+            <Card className="text-center py-14 border-border rounded-3xl p-8 space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                <Rocket className="w-7 h-7" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-foreground">No Solution Pods Launched Yet</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pick a verified societal problem, assemble your student team, and build a working prototype!
+                </p>
+              </div>
+              <a
+                href="/explore"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow"
+              >
+                Explore Real Problems
+              </a>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'badges' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+          {[
+            {
+              icon: <Rocket className="w-5 h-5" />,
+              color: 'bg-primary/10 text-primary',
+              title: 'Student Innovator',
+              desc: 'Official verification as an active solver on the SamadhanX platform.',
+            },
+            {
+              icon: <ShieldCheck className="w-5 h-5" />,
+              color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+              title: 'Solution Pod Lead',
+              desc: 'Leading a student team to tackle real community and national challenges.',
+            },
+            {
+              icon: <Award className="w-5 h-5" />,
+              color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+              title: 'Prototype Builder',
+              desc: 'Submitted and deployed functional engineering models and prototypes.',
+            },
+            {
+              icon: <Sparkles className="w-5 h-5" />,
+              color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+              title: 'Academic Collaborator',
+              desc: 'Mentored and endorsed by verified university faculty members.',
+            },
+          ].map(({ icon, color, title, desc }) => (
+            <Card key={title} className="p-4 border-border rounded-2xl flex items-start gap-3.5 bg-card">
+              <div className={`p-2.5 rounded-xl ${color} shrink-0`}>{icon}</div>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-foreground">{title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── Edit Student Profile Modal ── */}
+      {editOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-student-profile-title"
+        >
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border-border space-y-0 p-0 rounded-3xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-border">
+              <div>
+                <h2 id="edit-student-profile-title" className="text-base sm:text-lg font-black text-foreground">
+                  Edit Innovator Profile
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Showcase your skills, links, and academic details to mentors and teammates.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditOpen(false)}
+                className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-5 sm:p-6 space-y-6">
+              {/* Photo Upload Row */}
+              <Section title="Profile Photo">
+                <div className="flex items-center gap-4">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="w-16 h-16 rounded-2xl object-cover ring-2 ring-border"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground font-black text-lg flex items-center justify-center uppercase">
+                      {getInitials(displayName)}
+                    </div>
+                  )}
+                  <label className="cursor-pointer flex items-center gap-2 px-3.5 py-2 text-xs font-semibold border border-border rounded-xl hover:bg-muted text-foreground transition-colors min-h-[40px]">
+                    <Camera className="w-4 h-4" />
+                    {isUploadingAvatar ? 'Uploading…' : 'Change Photo'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={isUploadingAvatar}
+                    />
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">JPEG, PNG, WebP · max 5 MB</p>
+                </div>
+              </Section>
+
+              {/* Core Information */}
+              <Section title="Basic Details">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField label="Full Name *">
+                    <input
+                      type="text"
+                      required
+                      value={form.full_name}
+                      onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
+                      className={inputCls(false)}
+                      placeholder="e.g. Himanshu Kumar"
+                    />
+                  </FormField>
+
+                  <FormField label="Headline / Title">
+                    <input
+                      type="text"
+                      value={form.headline}
+                      onChange={(e) => setForm((f) => ({ ...f, headline: e.target.value }))}
+                      className={inputCls(false)}
+                      placeholder="e.g. Full Stack Developer & AI Innovator"
+                    />
+                  </FormField>
+
+                  <FormField label="Department / Branch *">
+                    <input
+                      type="text"
+                      required
+                      value={form.department}
+                      onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+                      className={inputCls(false)}
+                      placeholder="e.g. Computer Science & Engineering"
+                    />
+                  </FormField>
+
+                  <FormField label="Expected Graduation Year">
+                    <input
+                      type="number"
+                      min={1990}
+                      max={2040}
+                      value={form.graduation_year}
+                      onChange={(e) => setForm((f) => ({ ...f, graduation_year: e.target.value }))}
+                      className={inputCls(false)}
+                      placeholder="e.g. 2026"
+                    />
+                  </FormField>
+
+                  <FormField label="Student / Enrollment Number">
+                    <input
+                      type="text"
+                      value={form.enrollment_number}
+                      onChange={(e) => setForm((f) => ({ ...f, enrollment_number: e.target.value }))}
+                      className={inputCls(false)}
+                      placeholder="e.g. 22CS10042"
+                    />
+                  </FormField>
+
+                  <FormField label="Registered Email">
+                    <div className="p-2.5 bg-muted/50 border border-border rounded-xl text-sm text-muted-foreground truncate">
+                      {studentProf?.email || user?.email}
+                    </div>
+                  </FormField>
+                </div>
+              </Section>
+
+              {/* Links & Portfolio */}
+              <Section title="Links & Developer Profiles">
+                <div className="space-y-3">
+                  <FormField label="GitHub Profile URL">
+                    <div className="relative">
+                      <Github className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                      <input
+                        type="url"
+                        value={form.github_url}
+                        onChange={(e) => setForm((f) => ({ ...f, github_url: e.target.value }))}
+                        className={`${inputCls(false)} pl-9`}
+                        placeholder="https://github.com/username"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="LinkedIn Profile URL">
+                    <div className="relative">
+                      <Linkedin className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                      <input
+                        type="url"
+                        value={form.linkedin_url}
+                        onChange={(e) => setForm((f) => ({ ...f, linkedin_url: e.target.value }))}
+                        className={`${inputCls(false)} pl-9`}
+                        placeholder="https://linkedin.com/in/username"
+                      />
+                    </div>
+                  </FormField>
+
+                  <FormField label="Portfolio / Personal Website URL">
+                    <div className="relative">
+                      <Globe className="w-4 h-4 text-muted-foreground absolute left-3 top-3" />
+                      <input
+                        type="url"
+                        value={form.portfolio_url}
+                        onChange={(e) => setForm((f) => ({ ...f, portfolio_url: e.target.value }))}
+                        className={`${inputCls(false)} pl-9`}
+                        placeholder="https://myportfolio.dev"
+                      />
+                    </div>
+                  </FormField>
+                </div>
+              </Section>
+
+              {/* Technical Skills Tag Editor */}
+              <Section title={`Technical Skills (${form.skills.length}/25)`}>
+                <div className="space-y-3">
+                  {/* Current tags */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2 bg-secondary/30 border border-border rounded-2xl">
+                    {form.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-xl bg-primary text-primary-foreground"
+                      >
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSkill(skill)}
+                          className="hover:text-primary-foreground/70 focus:outline-none"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {form.skills.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic p-1">
+                        No skills added yet. Type below or choose from suggestions.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Input row */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSkillInput}
+                      onChange={(e) => setNewSkillInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          handleAddSkill();
+                        }
+                      }}
+                      className={inputCls(false)}
+                      placeholder="Type a skill and press Enter or click Add (e.g. ROS, LoRa, Docker)..."
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAddSkill()}
+                      disabled={!newSkillInput.trim()}
+                    >
+                      <Plus className="w-4 h-4 mr-1" /> Add
+                    </Button>
+                  </div>
+
+                  {/* Quick suggestion chips */}
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground">Quick Suggestions:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {POPULAR_SKILL_SUGGESTIONS.map((suggestion) => {
+                        const alreadyAdded = form.skills.includes(suggestion);
+                        return (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            disabled={alreadyAdded}
+                            onClick={() => handleAddSkill(suggestion)}
+                            className={`px-2.5 py-0.5 text-xs font-semibold rounded-xl border transition-colors ${
+                              alreadyAdded
+                                ? 'bg-muted text-muted-foreground border-transparent opacity-40 cursor-default'
+                                : 'bg-secondary text-secondary-foreground border-border hover:border-primary hover:text-primary'
+                            }`}
+                          >
+                            + {suggestion}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </Section>
+
+              {/* Bio / Statement */}
+              <Section title="About You & Problem Solving Vision">
+                <FormField label="Bio / Motivation (max 1000 characters)">
+                  <textarea
+                    value={form.bio}
+                    maxLength={1000}
+                    onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+                    className={`${inputCls(false)} h-24 resize-none`}
+                    placeholder="Describe your engineering focus, past projects, or why you want to build solutions for community challenges..."
+                  />
+                  <p className="text-[11px] text-muted-foreground text-right">{form.bio.length}/1000</p>
+                </FormField>
+              </Section>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" isLoading={isSaving}>
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main export — routes by role
 // ---------------------------------------------------------------------------
 
@@ -1229,8 +2055,10 @@ export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
   const isCitizen = user?.role === 'citizen';
   const isFaculty = user?.role === 'faculty';
+  const isStudent = user?.role === 'student';
 
   if (isCitizen) return <CitizenProfileView />;
   if (isFaculty) return <FacultyProfileView />;
+  if (isStudent) return <StudentProfileView />;
   return <SharedProfileView />;
 };

@@ -42,15 +42,16 @@ class ProjectService:
         notif_type: NotificationType = NotificationType.SYSTEM_ALERT,
         link: str | None = None,
     ) -> None:
-        """Fire-and-forget notification; never raises."""
+        """Fire-and-forget notification; never raises and uses savepoint to protect main transaction."""
         try:
-            await self._notif_repo.create_notification(
-                recipient_id=recipient_id,
-                title=title,
-                message=message,
-                type=notif_type,
-                link=link,
-            )
+            async with self.db.begin_nested():
+                await self._notif_repo.create_notification(
+                    recipient_id=recipient_id,
+                    title=title,
+                    message=message,
+                    type=notif_type,
+                    link=link,
+                )
         except Exception:
             pass  # Notifications are non-critical; never block the main flow.
 
@@ -122,7 +123,9 @@ class ProjectService:
             "repository_url": data.repository_url,
             "status": ProjectStatus.PLANNING,
             "lead_student_id": lead_student.id,
-            "faculty_mentor_id": data.faculty_mentor_id,
+            # faculty_mentor_id is intentionally NOT set by students — it can only
+            # be assigned by a Faculty member through the adopt endpoint.
+            "faculty_mentor_id": None,
             "university_id": university_id,
         }
 
@@ -219,30 +222,34 @@ class ProjectService:
                 },
             )
 
+        mentor_id = project.faculty_mentor_id
+        project_title = project.title
+        pod_id = project.id
+
         project.status = new_status
         await self.db.flush()
-        await self.db.refresh(project)
 
         # Notify the pod lead
         await self._notify(
             recipient_id=user.id,
             title="Pod Submitted for Review ✅",
-            message=f"Your pod \"{project.title}\" has been submitted for faculty review.",
+            message=f"Your pod \"{project_title}\" has been submitted for faculty review.",
             notif_type=NotificationType.POD_SUBMITTED_FOR_REVIEW,
-            link=f"/projects/{project.id}",
+            link=f"/projects/{pod_id}",
         )
 
         # Notify faculty mentor if assigned
-        if project.faculty_mentor_id:
+        if mentor_id:
             await self._notify(
-                recipient_id=project.faculty_mentor_id,
+                recipient_id=mentor_id,
                 title="New Pod Awaiting Your Review",
-                message=f"The pod \"{project.title}\" has been submitted and requires your review.",
+                message=f"The pod \"{project_title}\" has been submitted and requires your review.",
                 notif_type=NotificationType.POD_SUBMITTED_FOR_REVIEW,
-                link=f"/projects/{project.id}",
+                link=f"/projects/{pod_id}",
             )
 
-        return project
+        fresh_project = await self.repo.get_by_id(pod_id)
+        return fresh_project or project
 
     # ------------------------------------------------------------------
     # Project updates (milestone log)

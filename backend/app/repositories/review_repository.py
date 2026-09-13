@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.enums import ReviewDecision
 from app.models.project_review import ProjectReview
+from app.models.user import User
 
 
 class ReviewRepository:
@@ -24,13 +25,21 @@ class ReviewRepository:
         )
         self.db.add(review)
         await self.db.flush()
-        await self.db.refresh(review)
-        return review
+        # Re-query with reviewer loaded so reviewer_name property is available
+        query = (
+            select(ProjectReview)
+            .options(selectinload(ProjectReview.reviewer))
+            .where(ProjectReview.id == review.id)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one()
 
     async def list_by_project(self, project_id: uuid.UUID) -> Sequence[ProjectReview]:
         query = (
             select(ProjectReview)
-            .options(selectinload(ProjectReview.reviewer))
+            .options(
+                selectinload(ProjectReview.reviewer).selectinload(User.faculty_profile),
+            )
             .where(ProjectReview.project_id == project_id)
             .order_by(ProjectReview.created_at.desc())
         )

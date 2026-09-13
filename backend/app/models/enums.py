@@ -76,6 +76,9 @@ class NotificationType(StrEnum):
     POD_MEMBER_JOINED = "pod_member_joined"
     POD_SUBMITTED_FOR_REVIEW = "pod_submitted_for_review"
     POD_REVIEW_FEEDBACK = "pod_review_feedback"
+    # Impact & Funding
+    IMPACT_REPORT_SUBMITTED = "impact_report_submitted"
+    FUNDING_OFFER_RESPONSE = "funding_offer_response"
 
 
 class Gender(StrEnum):

@@ -10,6 +10,7 @@ from app.models.base import BaseModel
 from app.models.enums import ProjectStatus
 
 if TYPE_CHECKING:
+    from app.models.impact_report import ImpactReport
     from app.models.industry_support import IndustrySupport
     from app.models.problem import Problem
     from app.models.profiles import UniversityProfile
@@ -62,6 +63,9 @@ class SolutionProject(BaseModel):
     )
     supports: Mapped[list["IndustrySupport"]] = relationship(
         "IndustrySupport", back_populates="project", cascade="all, delete-orphan"
+    )
+    impact_report: Mapped["ImpactReport | None"] = relationship(
+        "ImpactReport", back_populates="pod", uselist=False, cascade="all, delete-orphan"
     )
 
     # ---------------------------------------------------------------------------

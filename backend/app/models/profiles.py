@@ -76,6 +76,11 @@ class StudentProfile(BaseModel):
     department: Mapped[str] = mapped_column(String(150), nullable=False)
     graduation_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     skills: Mapped[list | None] = mapped_column(JSON, default=list)
+    headline: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    portfolio_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="student_profile")
     university: Mapped["UniversityProfile"] = relationship("UniversityProfile", back_populates="students")

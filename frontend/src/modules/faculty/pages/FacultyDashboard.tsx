@@ -85,7 +85,11 @@ export const FacultyDashboard: React.FC = () => {
       toast.success('Mentorship evaluation dispatched successfully!');
       setReviewModalProject(null);
       setFeedbackText('');
+      // Invalidate faculty dashboard + student pod caches so both sides update
       queryClient.invalidateQueries({ queryKey: ['faculty-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['pod-detail', reviewModalProject.id] });
+      queryClient.invalidateQueries({ queryKey: ['my-problem-pods'] });
+      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
     } catch (err: unknown) {
       const errorObj = err as {
         response?: { data?: { error?: { message?: string }; detail?: { message?: string } | string; message?: string } };

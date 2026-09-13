@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   Rocket,
   GraduationCap,
@@ -7,9 +9,12 @@ import {
   MapPin,
   CheckCircle2,
   AlertTriangle,
+  ShieldCheck,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 import type { Pod, PodStatus } from '../../../api/pods';
-import { POD_STATUS_LABEL, canSubmitForReview } from '../../../api/pods';
+import { POD_STATUS_LABEL, canSubmitForReview, podsApi } from '../../../api/pods';
 
 // ---------------------------------------------------------------------------
 // Status badge colours
@@ -92,14 +97,39 @@ interface PodCardProps {
 }
 
 export const PodCard: React.FC<PodCardProps> = ({ pod, currentUserId }) => {
+  const queryClient = useQueryClient();
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+
   const isLead = currentUserId === pod.lead_student_id;
   const statusLabel = POD_STATUS_LABEL[pod.status];
   const statusClass = STATUS_CLASSES[pod.status];
   const progressClass = PROGRESS_CLASSES[pod.status];
   const isSubmittable = isLead && canSubmitForReview(pod);
+  const isInReview = pod.status === 'review' || pod.status === 'pilot';
   const lastActivity = pod.updates.length > 0
     ? pod.updates[0].created_at
     : pod.updated_at;
+
+  const submitMutation = useMutation({
+    mutationFn: () => podsApi.submitForReview(pod.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-problem-pods'] });
+      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['pod-detail', pod.id] });
+      queryClient.invalidateQueries({ queryKey: ['student-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['student-profile'] });
+      toast.success(`Solution pod "${pod.title}" successfully submitted for faculty review!`);
+      setConfirmModalOpen(false);
+    },
+    onError: (err: any) => {
+      const errorMsg =
+        err.response?.data?.detail?.message ||
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to submit pod for review. Please try again.';
+      toast.error(errorMsg);
+    },
+  });
 
   return (
     <article
@@ -234,17 +264,26 @@ export const PodCard: React.FC<PodCardProps> = ({ pod, currentUserId }) => {
         </a>
 
         <div className="flex items-center gap-2">
-          {/* Submit for review shortcut */}
-          {isSubmittable && (
-            <a
-              href={`/projects/${pod.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-xs font-bold hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 min-h-[36px]"
+          {/* Submit for review button */}
+          {isSubmittable ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-xs font-bold hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 min-h-[36px]"
               aria-label={`Submit ${pod.title} for review`}
             >
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" aria-hidden="true" />
               Submit for Review
-            </a>
-          )}
+            </button>
+          ) : isInReview ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 text-xs font-semibold">
+              <Clock className="w-3 h-3 text-purple-500" aria-hidden="true" />
+              In Faculty Review
+            </span>
+          ) : null}
 
           {/* Open pod workspace */}
           <a
@@ -257,6 +296,89 @@ export const PodCard: React.FC<PodCardProps> = ({ pod, currentUserId }) => {
           </a>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`modal-title-${pod.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!submitMutation.isPending) setConfirmModalOpen(false);
+          }}
+        >
+          <div
+            className="bg-card border border-border rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id={`modal-title-${pod.id}`} className="text-base font-bold text-foreground">
+                    Submit Pod for Faculty Review
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Ready for academic evaluation?</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmModalOpen(false)}
+                disabled={submitMutation.isPending}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-secondary/40 rounded-2xl p-3.5 text-xs space-y-1.5 border border-border/50">
+              <p className="font-semibold text-foreground">Pod: <span className="font-normal">{pod.title}</span></p>
+              <p className="font-semibold text-foreground">Team: <span className="font-normal">{pod.team_name}</span></p>
+              {pod.faculty_mentor_name ? (
+                <p className="font-semibold text-foreground">Assigned Mentor: <span className="font-normal">{pod.faculty_mentor_name}</span></p>
+              ) : (
+                <p className="text-amber-600 dark:text-amber-400 font-medium">No direct mentor assigned yet. Campus faculty mentors will see this in their review queue.</p>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Submitting transitions your pod to <strong>Under Review</strong>. Your faculty mentor will be notified to review your prototype, code repository, and milestone updates.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={submitMutation.isPending}
+                onClick={() => setConfirmModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitMutation.isPending}
+                onClick={() => submitMutation.mutate()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow disabled:opacity-50"
+              >
+                {submitMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5" /> Confirm & Submit
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 };

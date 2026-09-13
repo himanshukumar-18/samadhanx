@@ -43,7 +43,13 @@ export const projectsApi = {
     return res.data;
   },
 
-  listPeople: async (params?: { search?: string; limit?: number }) => {
+  listPeople: async (params?: {
+    search?: string;
+    skill?: string;
+    department?: string;
+    offset?: number;
+    limit?: number;
+  }) => {
     const res = await apiClient.get('/student/people', { params });
     return res.data;
   },

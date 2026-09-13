@@ -2,23 +2,66 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, Search, GraduationCap, Building2, 
-  Sparkles, Copy, Check, ArrowRight
+  Sparkles, Copy, Check, ArrowRight, Filter, ChevronDown, RotateCcw
 } from 'lucide-react';
-import { projectsApi } from '../../../api/projects';
+import { studentApi } from '../../../api/student';
+
+const POPULAR_SKILLS = [
+  'All',
+  'Python',
+  'React',
+  'AI / ML',
+  'IoT & Embedded',
+  'CleanTech',
+  'Robotics',
+  'Data Science',
+  'Full Stack',
+  'Mobile App',
+  'Hardware',
+];
+
+const DEPARTMENTS = [
+  'All Departments',
+  'Computer Science & Engineering',
+  'Electronics & Communication',
+  'Electrical Engineering',
+  'Mechanical Engineering',
+  'Civil & Environmental',
+  'Biotechnology & Healthcare',
+  'Information Technology',
+];
 
 export const DiscoverPeoplePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState('All');
+  const [selectedDept, setSelectedDept] = useState('All Departments');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const LIMIT = 12;
 
-  const { data: people, isLoading, error } = useQuery({
-    queryKey: ['student-people', searchTerm],
-    queryFn: () => projectsApi.listPeople({ search: searchTerm || undefined }),
+  const { data: people, isLoading, error, isFetching } = useQuery({
+    queryKey: ['student-people', searchTerm, selectedSkill, selectedDept, offset],
+    queryFn: () =>
+      studentApi.listPeople({
+        search: searchTerm.trim() || undefined,
+        skill: selectedSkill === 'All' ? undefined : selectedSkill,
+        department: selectedDept === 'All Departments' ? undefined : selectedDept,
+        offset,
+        limit: LIMIT,
+      }),
   });
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setSelectedSkill('All');
+    setSelectedDept('All Departments');
+    setOffset(0);
   };
 
   return (
@@ -39,16 +82,67 @@ export const DiscoverPeoplePage: React.FC = () => {
         </div>
 
         {/* Search Input */}
-        <div className="pt-2">
-          <div className="relative max-w-xl">
+        <div className="pt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="relative md:col-span-2">
             <Search className="absolute left-4 top-3.5 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search by student name, department (e.g. Computer Science, Mechanical)..."
+              placeholder="Search by student name or keywords..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setOffset(0);
+              }}
               className="w-full pl-11 pr-4 py-3 rounded-2xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:text-muted-foreground"
             />
+          </div>
+
+          <div className="relative">
+            <select
+              aria-label="Filter by department"
+              value={selectedDept}
+              onChange={(e) => {
+                setSelectedDept(e.target.value);
+                setOffset(0);
+              }}
+              className="w-full appearance-none pl-4 pr-10 py-3 rounded-2xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer font-medium"
+            >
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept} className="bg-card text-foreground">
+                  {dept}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Skill Filter Chips */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <Filter className="w-3.5 h-3.5" /> Filter by Skill:
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            {POPULAR_SKILLS.map((skill) => {
+              const active = selectedSkill === skill;
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => {
+                    setSelectedSkill(skill);
+                    setOffset(0);
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {skill}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -71,82 +165,114 @@ export const DiscoverPeoplePage: React.FC = () => {
           </div>
           <h3 className="text-base font-bold text-foreground">No Innovators Found</h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            {searchTerm ? `No student profiles matched "${searchTerm}". Try a different department or keyword.` : 'No registered student profiles available yet.'}
+            No student profiles matched your active search and filter criteria.
           </p>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-secondary text-secondary-foreground text-xs font-bold hover:bg-secondary/80 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {people.map((person: any) => (
-            <div
-              key={person.id}
-              className="bg-card border border-border rounded-3xl p-6 shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between space-y-4 group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary font-bold text-lg flex items-center justify-center shrink-0 border border-primary/20">
-                      {person.full_name?.charAt(0)?.toUpperCase() || 'S'}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                        {person.full_name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                        <GraduationCap className="w-3.5 h-3.5 text-primary" /> {person.department || 'Undergraduate Innovator'}
-                        {person.graduation_year && <span>• Class of {person.graduation_year}</span>}
-                      </p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {people.map((person: any) => (
+              <div
+                key={person.id}
+                className="bg-card border border-border rounded-3xl p-6 shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between space-y-4 group"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary font-bold text-lg flex items-center justify-center shrink-0 border border-primary/20">
+                        {person.full_name?.charAt(0)?.toUpperCase() || 'S'}
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                          {person.full_name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                          <GraduationCap className="w-3.5 h-3.5 text-primary" /> {person.department || 'Undergraduate Innovator'}
+                          {person.graduation_year && <span>• Class of {person.graduation_year}</span>}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Building2 className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{person.institution_name}</span>
-                </div>
-
-                {/* Skills tags */}
-                {person.skills && person.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {person.skills.map((skill: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="text-[11px] font-semibold px-2.5 py-0.5 rounded-xl bg-secondary text-secondary-foreground"
-                      >
-                        {skill}
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Building2 className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{person.institution_name}</span>
                   </div>
-                )}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCopyId(person.id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/80 hover:bg-secondary text-secondary-foreground text-xs font-semibold transition-colors"
-                  title="Copy User UUID to add to your solution pod team"
-                >
-                  {copiedId === person.id ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-500" /> Copied ID
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" /> Copy ID
-                    </>
+                  {/* Skills tags */}
+                  {person.skills && person.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {person.skills.map((skill: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="text-[11px] font-semibold px-2.5 py-0.5 rounded-xl bg-secondary text-secondary-foreground"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
 
-                <a
-                  href={`/profile/user/${person.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                >
-                  View Profile <ArrowRight className="w-3.5 h-3.5" />
-                </a>
+                {/* Action Buttons */}
+                <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyId(person.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/80 hover:bg-secondary text-secondary-foreground text-xs font-semibold transition-colors"
+                    title="Copy User UUID to add to your solution pod team"
+                  >
+                    {copiedId === person.id ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" /> Copied ID
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> Copy ID
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={`/profile/user/${person.id}`}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                  >
+                    View Profile <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => setOffset((prev) => Math.max(0, prev - LIMIT))}
+              disabled={offset === 0 || isFetching}
+              className="px-4 py-2 rounded-2xl bg-secondary text-secondary-foreground text-xs font-bold disabled:opacity-40 hover:bg-secondary/80 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-muted-foreground font-medium">
+              Showing page {Math.floor(offset / LIMIT) + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOffset((prev) => prev + LIMIT)}
+              disabled={!people || people.length < LIMIT || isFetching}
+              className="px-4 py-2 rounded-2xl bg-secondary text-secondary-foreground text-xs font-bold disabled:opacity-40 hover:bg-secondary/80 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

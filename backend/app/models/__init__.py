@@ -3,6 +3,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base, BaseModel
 from app.models.chat import ChatMessage
 from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
+from app.models.impact_report import ImpactReport
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
 from app.models.institution_request import InstitutionVerificationRequest
@@ -26,6 +27,7 @@ from app.models.restricted_request import RestrictedAccountRequest
 from app.models.social import ProblemReport, ProblemSave, ProblemShare, UserFollow
 from app.models.user import User
 from app.models.user_profile import UserProfileDetail
+
 
 __all__ = [
     "Base",
@@ -63,6 +65,7 @@ __all__ = [
     "ProjectUpdate",
     "ProjectReview",
     "IndustrySupport",
+    "ImpactReport",
     "PatentIP",
     "ChatMessage",
     "AccountSettings",
