@@ -68,4 +68,51 @@ export const problemsApi = {
     const res = await apiClient.get('/citizen/problems/my', { params: { offset, limit } });
     return res.data;
   },
+
+  getProblemTimeline: async (problemId: string): Promise<CitizenProblemTimelineResponse> => {
+    const res = await apiClient.get(`/citizen/problems/${problemId}/timeline`);
+    return res.data;
+  },
 };
+
+export interface TimelineStage {
+  stage: string;
+  label: string;
+  status: 'completed' | 'in_progress' | 'pending' | 'rejected';
+  timestamp?: string | null;
+  description?: string | null;
+  optional?: boolean;
+}
+
+export interface PodSummary {
+  pod_id: string;
+  title: string;
+  team_name: string;
+  progress_percent: number;
+  member_count: number;
+  university_name?: string | null;
+  status: string;
+  repository_url?: string | null;
+  created_at: string;
+}
+
+export interface ImpactReportSummary {
+  id: string;
+  beneficiaries_reached: number;
+  outcome_description: string;
+  proof_image_urls: string[];
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface CitizenProblemTimelineResponse {
+  problem_id: string;
+  problem_title: string;
+  problem_status: string;
+  is_verified: boolean;
+  created_at: string;
+  timeline: TimelineStage[];
+  current_pod?: PodSummary | null;
+  impact_report?: ImpactReportSummary | null;
+}
+

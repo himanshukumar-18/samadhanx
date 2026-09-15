@@ -7,12 +7,28 @@ from sqlalchemy.orm import selectinload
 
 from app.models.enums import ProblemStatus
 from app.models.problem import Problem, ProblemComment, ProblemEndorsement
+from app.models.project import SolutionProject
 from app.models.user import User
 
 
 class ProblemRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def get_problem_with_timeline_data(self, problem_id: uuid.UUID) -> Problem | None:
+        query = (
+            select(Problem)
+            .options(
+                selectinload(Problem.projects).selectinload(SolutionProject.university),
+                selectinload(Problem.projects).selectinload(SolutionProject.members),
+                selectinload(Problem.projects).selectinload(SolutionProject.reviews),
+                selectinload(Problem.projects).selectinload(SolutionProject.supports),
+                selectinload(Problem.projects).selectinload(SolutionProject.impact_report),
+            )
+            .where(Problem.id == problem_id)
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
     async def create_problem(self, problem_data: dict) -> Problem:
         problem = Problem(**problem_data)

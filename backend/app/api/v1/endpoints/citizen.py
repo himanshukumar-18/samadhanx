@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db, require_role
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.problem import ProblemCreate, ProblemResponse
+from app.schemas.problem import CitizenProblemTimelineResponse, ProblemCreate, ProblemResponse
 from app.schemas.profile_detail import CitizenProfileResponse, CitizenProfileUpdate
 from app.services.problem_service import ProblemService
 from app.services.profile_service import ProfileService
@@ -99,3 +100,25 @@ async def get_my_problems(
 ):
     service = ProblemService(db)
     return await service.list_problems(created_by_id=current_user.id, offset=offset, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Citizen Problem Lifecycle Timeline (Core Tracking)
+# ---------------------------------------------------------------------------
+
+@router.get("/my-problems/{problem_id}/timeline", response_model=CitizenProblemTimelineResponse)
+@router.get("/problems/{problem_id}/timeline", response_model=CitizenProblemTimelineResponse)
+async def get_problem_timeline(
+    problem_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role([UserRole.CITIZEN, UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Return the full real-time problem-to-impact lifecycle timeline for a problem.
+
+    Enforces BOLA: only the citizen who submitted the problem or an administrator
+    can access the detailed timeline.
+    """
+    service = ProblemService(db)
+    return await service.get_problem_timeline(user=current_user, problem_id=problem_id)
+

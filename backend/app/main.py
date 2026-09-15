@@ -61,6 +61,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS official_email VARCHAR(255) NOT NULL DEFAULT '';"))
             await conn.execute(text("ALTER TABLE industry_profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255);"))
 
+            # Support and Industry enums
+            await conn.execute(text("ALTER TYPE support_type_enum ADD VALUE IF NOT EXISTS 'CSR_GRANT';"))
+            await conn.execute(text("ALTER TYPE support_type_enum ADD VALUE IF NOT EXISTS 'EQUIPMENT';"))
+            await conn.execute(text("ALTER TYPE support_type_enum ADD VALUE IF NOT EXISTS 'csr_grant';"))
+            await conn.execute(text("ALTER TYPE support_type_enum ADD VALUE IF NOT EXISTS 'equipment';"))
+            await conn.execute(text("ALTER TYPE industry_support_status_enum ADD VALUE IF NOT EXISTS 'WITHDRAWN';"))
+            await conn.execute(text("ALTER TYPE industry_support_status_enum ADD VALUE IF NOT EXISTS 'withdrawn';"))
+            await conn.execute(text("ALTER TYPE notification_type_enum ADD VALUE IF NOT EXISTS 'INDUSTRY_OFFER_MADE';"))
+            await conn.execute(text("ALTER TYPE notification_type_enum ADD VALUE IF NOT EXISTS 'FUNDING_MILESTONE_UPDATE';"))
+            await conn.execute(text("ALTER TYPE notification_type_enum ADD VALUE IF NOT EXISTS 'IMPACT_REPORT_SUBMITTED';"))
+            await conn.execute(text("ALTER TYPE notification_type_enum ADD VALUE IF NOT EXISTS 'FUNDING_OFFER_RESPONSE';"))
+
             # Citizen civic profile fields (migration 0008)
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS date_of_birth DATE;"))
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS gender VARCHAR(20);"))

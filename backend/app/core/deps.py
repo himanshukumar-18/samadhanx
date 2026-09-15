@@ -144,3 +144,24 @@ async def require_approved_university(
             detail={"code": "UNIVERSITY_NOT_APPROVED", "message": "University account is pending administrative approval."},
         )
     return current_user
+
+
+async def require_approved_industry(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> User:
+    """Gate for approved Industry partner accounts — mirrors require_approved_university."""
+    if current_user.role != UserRole.INDUSTRY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_AN_INDUSTRY_ACCOUNT", "message": "Action permitted only for industry partner accounts."},
+        )
+    if not current_user.industry_profile or not current_user.industry_profile.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ACCOUNT_PENDING_APPROVAL",
+                "message": "Your industry partner account is pending administrative approval. You will be notified once approved.",
+            },
+        )
+    return current_user
+

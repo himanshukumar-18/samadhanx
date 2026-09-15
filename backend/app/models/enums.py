@@ -13,6 +13,7 @@ class RequestStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
 
 class InvitationStatus(StrEnum):
     PENDING = "pending"
@@ -64,6 +65,8 @@ class SupportType(StrEnum):
     MENTORSHIP = "mentorship"
     PILOT_PARTNER = "pilot_partner"
     BOUNTY = "bounty"
+    CSR_GRANT = "csr_grant"
+    EQUIPMENT = "equipment"
 
 class NotificationType(StrEnum):
     PROBLEM_UPDATED = "problem_updated"
@@ -79,6 +82,8 @@ class NotificationType(StrEnum):
     # Impact & Funding
     IMPACT_REPORT_SUBMITTED = "impact_report_submitted"
     FUNDING_OFFER_RESPONSE = "funding_offer_response"
+    INDUSTRY_OFFER_MADE = "industry_offer_made"
+    FUNDING_MILESTONE_UPDATE = "funding_milestone_update"
 
 
 class Gender(StrEnum):

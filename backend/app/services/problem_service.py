@@ -4,13 +4,20 @@ from collections.abc import Sequence
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import NotificationType, ProblemStatus, UserRole
+from app.models.enums import NotificationType, ProblemStatus, ProjectStatus, RequestStatus, ReviewDecision, UserRole
 from app.models.problem import Problem, ProblemComment
 from app.models.user import User
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.problem_repository import ProblemRepository
 from app.repositories.social_repository import SocialRepository
-from app.schemas.problem import ProblemCreate, ProblemUpdate
+from app.schemas.problem import (
+    CitizenProblemTimelineResponse,
+    ImpactReportSummary,
+    PodSummary,
+    ProblemCreate,
+    ProblemUpdate,
+    TimelineStage,
+)
 
 
 class ProblemService:
@@ -136,3 +143,245 @@ class ProblemService:
     async def toggle_endorsement(self, user: User, problem_id: uuid.UUID) -> bool:
         await self.get_problem(problem_id)  # Validate existence
         return await self.repo.toggle_endorsement(problem_id=problem_id, user_id=user.id)
+
+    async def get_problem_timeline(self, user: User, problem_id: uuid.UUID) -> CitizenProblemTimelineResponse:
+        problem = await self.repo.get_problem_with_timeline_data(problem_id)
+        if not problem:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "PROBLEM_NOT_FOUND", "message": "The requested societal problem does not exist."},
+            )
+
+        # BOLA Check: Only the author or Admin can access the detailed timeline
+        if problem.created_by_id != user.id and user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "FORBIDDEN", "message": "You are not authorized to view this problem's timeline."},
+            )
+
+        # Find primary active pod if any
+        pod = problem.projects[0] if problem.projects else None
+
+        timeline: list[TimelineStage] = []
+
+        # 1. Submitted stage
+        timeline.append(
+            TimelineStage(
+                stage="submitted",
+                label="Problem Submitted",
+                status="completed",
+                timestamp=problem.created_at,
+                description="Submitted by citizen for nodal verification and campus innovation matching.",
+            )
+        )
+
+        # 2. Approved / Verified stage
+        if problem.status == ProblemStatus.REJECTED:
+            timeline.append(
+                TimelineStage(
+                    stage="approved",
+                    label="Submission Rejected",
+                    status="rejected",
+                    timestamp=problem.updated_at,
+                    description="Submission did not meet civic verification guidelines.",
+                )
+            )
+        elif problem.is_verified or problem.status not in [ProblemStatus.SUBMITTED, ProblemStatus.UNDER_REVIEW]:
+            timeline.append(
+                TimelineStage(
+                    stage="approved",
+                    label="Approved & Verified by Admin",
+                    status="completed",
+                    timestamp=problem.updated_at,
+                    description="Verified as an active civic priority challenge on the discovery feed.",
+                )
+            )
+        else:
+            timeline.append(
+                TimelineStage(
+                    stage="approved",
+                    label="Pending Admin Verification",
+                    status="pending",
+                    timestamp=None,
+                    description="Under initial evaluation by platform administrators.",
+                )
+            )
+
+        # 3. Picked Up stage
+        if pod:
+            univ_name = pod.university.university_name if pod.university else "Partner University"
+            timeline.append(
+                TimelineStage(
+                    stage="picked_up",
+                    label=f"Picked up by {pod.team_name}",
+                    status="completed",
+                    timestamp=pod.created_at,
+                    description=f"Student solution pod formed at {univ_name} with {len(pod.members)} innovators.",
+                )
+            )
+        else:
+            is_active_hunt = problem.is_verified or problem.status == ProblemStatus.VERIFIED
+            timeline.append(
+                TimelineStage(
+                    stage="picked_up",
+                    label="Matching with Student Innovation Pods",
+                    status="in_progress" if is_active_hunt else "pending",
+                    timestamp=None,
+                    description="Open for campus engineering teams to adopt and start prototyping.",
+                )
+            )
+
+        # 4. Faculty Approved stage
+        if pod:
+            approved_review = next((r for r in pod.reviews if r.decision == ReviewDecision.APPROVED), None)
+            if approved_review or pod.status in [ProjectStatus.PILOT, ProjectStatus.COMPLETED]:
+                desc = (
+                    f'Faculty mentor approved solution: "{approved_review.feedback_text}"'
+                    if (approved_review and approved_review.feedback_text)
+                    else "Academic review approved by faculty mentor."
+                )
+                timeline.append(
+                    TimelineStage(
+                        stage="faculty_approved",
+                        label="Solution Approved by Faculty Mentor",
+                        status="completed",
+                        timestamp=approved_review.created_at if approved_review else pod.updated_at,
+                        description=desc,
+                    )
+                )
+            elif pod.status == ProjectStatus.REVIEW:
+                timeline.append(
+                    TimelineStage(
+                        stage="faculty_approved",
+                        label="Under Faculty Academic Review",
+                        status="in_progress",
+                        timestamp=None,
+                        description="Team has submitted solution milestones for faculty evaluation.",
+                    )
+                )
+            else:
+                timeline.append(
+                    TimelineStage(
+                        stage="faculty_approved",
+                        label="Faculty Academic Review",
+                        status="pending",
+                        timestamp=None,
+                        description="Solution will undergo faculty evaluation upon prototype completion.",
+                    )
+                )
+        else:
+            timeline.append(
+                TimelineStage(
+                    stage="faculty_approved",
+                    label="Faculty Academic Review",
+                    status="pending",
+                    timestamp=None,
+                    description="Awaits team formation and prototype submission.",
+                )
+            )
+
+        # 5. Industry Funded stage (optional)
+        if pod:
+            approved_support = next((s for s in pod.supports if s.status == RequestStatus.APPROVED), None)
+            if approved_support:
+                timeline.append(
+                    TimelineStage(
+                        stage="industry_funded",
+                        label=f"Supported by {approved_support.company_name}",
+                        status="completed",
+                        timestamp=approved_support.created_at,
+                        description=f"Corporate backing granted: {approved_support.support_type.replace('_', ' ').title()}.",
+                        optional=True,
+                    )
+                )
+            else:
+                timeline.append(
+                    TimelineStage(
+                        stage="industry_funded",
+                        label="Industry Backing & Grants",
+                        status="pending",
+                        timestamp=None,
+                        description="Eligible for CSR sponsorship and equipment grants post faculty vetting.",
+                        optional=True,
+                    )
+                )
+        else:
+            timeline.append(
+                TimelineStage(
+                    stage="industry_funded",
+                    label="Industry Backing & Grants",
+                    status="pending",
+                    timestamp=None,
+                    description="Eligible for CSR sponsorships once solution is established.",
+                    optional=True,
+                )
+            )
+
+        # 6. Completed stage
+        if pod and pod.impact_report:
+            timeline.append(
+                TimelineStage(
+                    stage="completed",
+                    label="Problem Solved & Impact Report Published",
+                    status="completed",
+                    timestamp=pod.impact_report.created_at,
+                    description=f"Field resolution verified. {pod.impact_report.beneficiaries_reached:,} community members reached.",
+                )
+            )
+        elif problem.status == ProblemStatus.SOLVED or (pod and pod.status == ProjectStatus.COMPLETED):
+            timeline.append(
+                TimelineStage(
+                    stage="completed",
+                    label="Problem Solved & Deployed",
+                    status="completed",
+                    timestamp=pod.updated_at if pod else problem.updated_at,
+                    description="Field pilot successfully implemented and verified.",
+                )
+            )
+        else:
+            timeline.append(
+                TimelineStage(
+                    stage="completed",
+                    label="Field Resolution & Deployment",
+                    status="pending",
+                    timestamp=None,
+                    description="Final deployment, verification, and societal impact reporting.",
+                )
+            )
+
+        current_pod_summary = None
+        if pod:
+            current_pod_summary = PodSummary(
+                pod_id=pod.id,
+                title=pod.title,
+                team_name=pod.team_name,
+                progress_percent=pod.progress,
+                member_count=len(pod.members),
+                university_name=pod.university.university_name if pod.university else None,
+                status=pod.status.value,
+                repository_url=pod.repository_url,
+                created_at=pod.created_at,
+            )
+
+        impact_report_summary = None
+        if pod and pod.impact_report:
+            impact_report_summary = ImpactReportSummary(
+                id=pod.impact_report.id,
+                beneficiaries_reached=pod.impact_report.beneficiaries_reached,
+                outcome_description=pod.impact_report.outcome_description,
+                proof_image_urls=pod.impact_report.proof_image_urls or [],
+                is_verified=pod.impact_report.is_verified,
+                created_at=pod.impact_report.created_at,
+            )
+
+        return CitizenProblemTimelineResponse(
+            problem_id=problem.id,
+            problem_title=problem.title,
+            problem_status=problem.status.value,
+            is_verified=problem.is_verified,
+            created_at=problem.created_at,
+            timeline=timeline,
+            current_pod=current_pod_summary,
+            impact_report=impact_report_summary,
+        )
+

@@ -135,6 +135,20 @@ class ReviewService:
                         link=pod_link,
                     )
 
+        # If approved, notify the citizen who submitted the original problem
+        if (
+            data.decision == ReviewDecision.APPROVED
+            and project.problem
+            and project.problem.created_by_id
+        ):
+            await self._notify_safe(
+                recipient_id=project.problem.created_by_id,
+                title="Faculty Mentor Approved Solution! 🎓",
+                message=f"Faculty mentor {reviewer_name} has reviewed and approved the solution pod '{project.title}' for your problem '{project.problem.title}'.",
+                notif_type=NotificationType.POD_REVIEW_FEEDBACK,
+                link=f"/problems/{project.problem_id}",
+            )
+
         # ── Audit log ──
         try:
             async with db.begin_nested():

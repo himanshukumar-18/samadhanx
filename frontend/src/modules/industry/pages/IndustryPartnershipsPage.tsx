@@ -10,7 +10,6 @@ import {
   Award,
   HeartHandshake,
   Search,
-  PlusCircle,
   ExternalLink,
   GraduationCap,
   Clock,
@@ -103,7 +102,7 @@ export const IndustryPartnershipsPage: React.FC = () => {
 
   const isIndustryUser = user?.role === 'industry';
   const isUniversityUser = user?.role === 'university';
-  const canModerate = isUniversityUser || user?.role === 'faculty' || user?.role === 'admin' || user?.role === 'student';
+  const canModerate = isUniversityUser || user?.role === 'faculty' || user?.role === 'admin';
 
   const partnerships = overview?.partnerships || [];
   const availableProjects = overview?.available_projects || [];
@@ -148,15 +147,6 @@ export const IndustryPartnershipsPage: React.FC = () => {
             hardware pilot deployments, and executive student mentorship.
           </p>
         </div>
-
-        {isIndustryUser && (
-          <Button
-            onClick={() => handleOpenSponsorModal()}
-            className="flex items-center gap-2 shadow-lg shadow-amber-500/20 bg-amber-600 hover:bg-amber-700 text-white"
-          >
-            <PlusCircle className="w-4 h-4" /> Pledge CSR Support
-          </Button>
-        )}
       </div>
 
       {/* KPI Counters */}

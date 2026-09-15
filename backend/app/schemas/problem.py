@@ -110,3 +110,51 @@ class ProblemResponse(BaseModel):
     author: ProblemAuthorResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TimelineStage(BaseModel):
+    stage: str
+    label: str
+    status: str  # completed, in_progress, pending, rejected
+    timestamp: datetime | None = None
+    description: str | None = None
+    optional: bool = False
+
+
+class PodSummary(BaseModel):
+    pod_id: uuid.UUID
+    title: str
+    team_name: str
+    progress_percent: int
+    member_count: int
+    university_name: str | None = None
+    status: str
+    repository_url: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ImpactReportSummary(BaseModel):
+    id: uuid.UUID
+    beneficiaries_reached: int
+    outcome_description: str
+    proof_image_urls: list[str] = Field(default_factory=list)
+    is_verified: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CitizenProblemTimelineResponse(BaseModel):
+    problem_id: uuid.UUID
+    problem_title: str
+    problem_status: str
+    is_verified: bool
+    created_at: datetime
+    timeline: list[TimelineStage]
+    current_pod: PodSummary | None = None
+    impact_report: ImpactReportSummary | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+

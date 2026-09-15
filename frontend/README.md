@@ -1,16 +1,92 @@
-# React + Vite
+# SamadhanX — Frontend Client 🇮🇳
+> **Smart India Hackathon 2026 (Problem Statement: SIH 26043)**  
+> *Next-generation reactive interface built with React 18, TypeScript, Vite, and Tailwind CSS.*
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 🏗️ Architecture & Module Organization
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend codebase is organized by domain modules with role-based access control and decoupled API services.
 
-## React Compiler
+```
+frontend/src/
+├── api/                   # Typed API clients (Axios instance with JWT interceptors)
+│   ├── client.ts          # Base Axios client with correlation ID & token handling
+│   ├── auth.ts            # Auth & registration API calls
+│   ├── citizen.ts         # Citizen problems & real-time timeline calls
+│   ├── student.ts         # Pod management & teammate invites
+│   ├── faculty.ts         # Academic reviews & pod adoption
+│   ├── industry.ts        # Vetted projects & CSR funding offers
+│   ├── university.ts      # AISHE rosters & faculty invitations
+│   └── admin.ts           # National governance & audit log queries
+│
+├── modules/               # Domain-Driven Feature Modules
+│   ├── auth/              # Registration, Login, OTP Verification modals
+│   ├── citizen/           # Citizen Dashboard, Problem Submission, ProblemTimeline
+│   ├── student/           # Innovation Pod Hub, Roster Manager, Impact Reports
+│   ├── faculty/           # Faculty Mentorship Hub, Academic Review Rubric
+│   ├── industry/          # Vetted Solutions Catalog, CSR Offers, Funded Portfolios
+│   ├── university/        # University Innovation Hub, Faculty Onboarding
+│   └── admin/             # Verification Queues, AISHE Sync, Audit Logs
+│
+├── routes/                # Application Routing
+│   └── AppRoutes.tsx      # Declarative path routing with Role Guards
+│
+├── store/                 # Global State
+│   └── authStore.ts       # Zustand store with persistence for auth & profile
+│
+└── shared/                # Shared Components & Utilities
+    ├── components/        # Layouts, Modals, Badges, Loaders, Toasts
+    └── types/             # Shared TypeScript models & enums
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## ⚡ Tech Stack & Libraries
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **UI Framework**: React 18 with TypeScript
+- **Build Engine**: Vite 5
+- **Styling**: Tailwind CSS with custom thematic design system
+- **State Management**: Zustand (Auth & Session Persistence)
+- **Data Fetching & Cache**: TanStack React Query v5
+- **Icons**: Lucide React
+- **Notifications**: Sonner / React Hot Toast
+
+---
+
+## 🚀 Development & Build Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Start local Vite development server (Port 5173)
+npm run dev
+
+# Run TypeScript type check
+npx tsc --noEmit
+
+# Run ESLint validation
+npm run lint
+
+# Production compilation & asset optimization
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+---
+
+## 🛡️ Route Guards & Role-Based UI
+
+Routes are protected by user roles with automatic redirect logic in `AppRoutes.tsx`:
+
+| Role | Accessible Route Prefix | Redirect if Unauthorized |
+|---|---|---|
+| **Citizen** | `/citizen/*`, `/problems/*` | `/login` |
+| **Student** | `/student/*`, `/projects/*`, `/problems/*` | `/login` |
+| **Faculty** | `/faculty/*`, `/reviews/*` | `/login` |
+| **Industry** | `/industry/*`, `/partnerships/*` | `/login` or `/approval-pending` |
+| **University**| `/university/*` | `/login` or `/approval-pending` |
+| **Admin** | `/admin/*` | `/login` |

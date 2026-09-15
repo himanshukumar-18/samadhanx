@@ -3,6 +3,7 @@ from app.models.audit_log import AuditLog
 from app.models.base import Base, BaseModel
 from app.models.chat import ChatMessage
 from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
+from app.models.funded_project_comment import FundedProjectComment
 from app.models.impact_report import ImpactReport
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
@@ -65,6 +66,7 @@ __all__ = [
     "ProjectUpdate",
     "ProjectReview",
     "IndustrySupport",
+    "FundedProjectComment",
     "ImpactReport",
     "PatentIP",
     "ChatMessage",

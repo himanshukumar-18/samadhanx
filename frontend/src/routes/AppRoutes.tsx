@@ -21,6 +21,12 @@ import { AdminDashboard } from '../modules/admin/pages/AdminDashboard';
 import { UniversityFacultyPage } from '../modules/admin/pages/UniversityFacultyPage';
 import { FacultyDashboard } from '../modules/faculty/pages/FacultyDashboard';
 import { IndustryPartnershipsPage } from '../modules/industry/pages/IndustryPartnershipsPage';
+import { IndustryDashboard } from '../modules/industry/pages/IndustryDashboard';
+import { VettedProjectsPage } from '../modules/industry/pages/VettedProjectsPage';
+import { VettedProjectDetail } from '../modules/industry/pages/VettedProjectDetail';
+import { MyFundingOffersPage } from '../modules/industry/pages/MyFundingOffersPage';
+import { FundedProjectsPage } from '../modules/industry/pages/FundedProjectsPage';
+import { FundedProjectDetail } from '../modules/industry/pages/FundedProjectDetail';
 import { PatentsIPPage } from '../modules/research/pages/PatentsIPPage';
 import { InstitutionalImpactPage } from '../modules/impact/pages/InstitutionalImpactPage';
 import { ProtectedRoute } from '../shared/components/ProtectedRoute';
@@ -81,13 +87,80 @@ export const AppRoutes: React.FC = () => {
     );
   }
 
-  // Industry Partnerships & CSR Collaboration Hub
-  if (
-    path === '/industry' ||
-    path === '/industry/dashboard' ||
-    path === '/partnerships' ||
-    path === '/industry/partnerships'
-  ) {
+  // ── Industry Partner Portal (Phase E) ─────────────────────────────────────
+  // New: Phase E industry-specific pages
+  if (path === '/industry/dashboard' || path === '/industry') {
+    if (user?.role === 'industry') {
+      return (
+        <ProtectedRoute allowedRoles={['industry']}>
+          <MainLayout showRightSidebar={false}>
+            <IndustryDashboard />
+          </MainLayout>
+        </ProtectedRoute>
+      );
+    }
+    // Non-industry roles still see partnerships overview
+    return (
+      <MainLayout showRightSidebar={false}>
+        <IndustryPartnershipsPage />
+      </MainLayout>
+    );
+  }
+
+  if (path === '/industry/vetted-projects') {
+    return (
+      <ProtectedRoute allowedRoles={['industry']}>
+        <MainLayout showRightSidebar={false}>
+          <VettedProjectsPage />
+        </MainLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  if (path.startsWith('/industry/vetted-projects/')) {
+    const podId = path.replace('/industry/vetted-projects/', '').split('/')[0];
+    return (
+      <ProtectedRoute allowedRoles={['industry']}>
+        <MainLayout showRightSidebar={false}>
+          <VettedProjectDetail key={podId} />
+        </MainLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === '/industry/offers') {
+    return (
+      <ProtectedRoute allowedRoles={['industry']}>
+        <MainLayout showRightSidebar={false}>
+          <MyFundingOffersPage />
+        </MainLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === '/industry/funded-projects') {
+    return (
+      <ProtectedRoute allowedRoles={['industry']}>
+        <MainLayout showRightSidebar={false}>
+          <FundedProjectsPage />
+        </MainLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  if (path.startsWith('/industry/funded-projects/')) {
+    const podId = path.replace('/industry/funded-projects/', '').split('/')[0];
+    return (
+      <ProtectedRoute allowedRoles={['industry']}>
+        <MainLayout showRightSidebar={false}>
+          <FundedProjectDetail key={podId} />
+        </MainLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  // Legacy: Partnerships overview for other roles (students, faculty, university, admin)
+  if (path === '/partnerships' || path === '/industry/partnerships') {
     return (
       <MainLayout showRightSidebar={false}>
         <IndustryPartnershipsPage />
@@ -160,9 +233,11 @@ export const AppRoutes: React.FC = () => {
     }
     if (user?.role === 'industry') {
       return (
-        <MainLayout showRightSidebar={false}>
-          <IndustryPartnershipsPage />
-        </MainLayout>
+        <ProtectedRoute allowedRoles={['industry']}>
+          <MainLayout showRightSidebar={false}>
+            <IndustryDashboard />
+          </MainLayout>
+        </ProtectedRoute>
       );
     }
     return (

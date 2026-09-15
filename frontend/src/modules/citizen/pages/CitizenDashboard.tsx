@@ -139,11 +139,16 @@ export const CitizenDashboard: React.FC = () => {
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{prob.description}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge variant={prob.status === 'verified' ? 'approved' : 'pending'}>
-                    {prob.status}
+                  <Badge variant={prob.status === 'verified' || prob.status === 'solved' ? 'approved' : 'pending'} className="capitalize">
+                    {prob.status.replace('_', ' ')}
                   </Badge>
-                  <Button variant="outline" size="sm" onClick={() => (window.location.href = `/problems/${prob.id}`)}>
-                    {t('view_details')}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => (window.location.href = `/problems/${prob.id}`)}
+                    className="font-bold text-xs"
+                  >
+                    {language === 'hi' ? 'लाइव प्रगति ट्रैक करें' : 'Track Live Progress'}
                   </Button>
                 </div>
               </Card>

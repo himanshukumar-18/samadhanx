@@ -144,6 +144,16 @@ class ProjectService:
             link=f"/projects/{project.id}",
         )
 
+        # Notify the citizen submitter that a team has adopted their problem
+        if problem.created_by_id and problem.created_by_id != lead_student.id:
+            await self._notify(
+                recipient_id=problem.created_by_id,
+                title="Your Problem was Picked Up by Innovators! 🎉",
+                message=f"Team '{data.team_name}' has started an active Solution Pod for your reported problem '{problem.title}'.",
+                notif_type=NotificationType.POD_CREATED,
+                link=f"/problems/{problem.id}",
+            )
+
         return project
 
     # ------------------------------------------------------------------

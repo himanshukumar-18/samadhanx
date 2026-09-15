@@ -107,11 +107,15 @@ class IndustryProfile(BaseModel):
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     company_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    cin_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     registration_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    industry_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    industry_type: Mapped[str] = mapped_column(String(100), nullable=False, default="Technology")
     point_of_contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    official_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    designation: Mapped[str] = mapped_column(String(100), nullable=False, default="Representative")
+    official_email: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    focus_sectors: Mapped[list | None] = mapped_column(JSON, default=list)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="industry_profile")
+

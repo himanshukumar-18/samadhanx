@@ -47,6 +47,7 @@ async def _get_pod_with_membership_check(
         await db.execute(
             select(SolutionProject)
             .options(
+                selectinload(SolutionProject.problem),
                 selectinload(SolutionProject.members),
                 selectinload(SolutionProject.supports).selectinload(IndustrySupport.industry_user),
                 selectinload(SolutionProject.impact_report)
@@ -361,7 +362,7 @@ async def submit_impact_report(
     await db.flush()
     await db.refresh(report)
 
-    # Notify faculty mentor and admin
+    # Notify faculty mentor and citizen submitter
     notif_repo = NotificationRepository(db)
     notify_targets = []
     if pod.faculty_mentor_id:
@@ -380,6 +381,22 @@ async def submit_impact_report(
                     ),
                     type=NotificationType.IMPACT_REPORT_SUBMITTED,
                     link=f"/projects/{pod_id}",
+                )
+        except Exception:
+            pass
+
+    # Notify the citizen submitter who reported the original problem
+    if pod.problem and pod.problem.created_by_id:
+        try:
+            async with db.begin_nested():
+                await notif_repo.create_notification(
+                    recipient_id=pod.problem.created_by_id,
+                    title="Your Reported Problem is Solved! 🌟",
+                    message=(
+                        f'Team "{pod.team_name}" has completed their solution for "{pod.problem.title}" and published a Societal Impact Report ({data.beneficiaries_reached} beneficiaries reached).'
+                    ),
+                    type=NotificationType.IMPACT_REPORT_SUBMITTED,
+                    link=f"/problems/{pod.problem_id}",
                 )
         except Exception:
             pass

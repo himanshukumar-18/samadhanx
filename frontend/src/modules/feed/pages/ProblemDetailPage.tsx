@@ -21,6 +21,7 @@ import {
 import { problemsApi } from '../../../api/problems';
 import { projectsApi } from '../../../api/projects';
 import { socialApi } from '../../../api/social';
+import { ProblemTimeline } from '../../citizen/components/ProblemTimeline';
 import toast from 'react-hot-toast';
 
 export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId: propId }) => {
@@ -138,30 +139,6 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
 
       {/* Main Problem Header Card */}
       <Card className="p-5 sm:p-6 border-border space-y-4 rounded-2xl">
-        {/* Status Lifecycle Stepper */}
-        <div className="p-3.5 bg-muted/40 rounded-2xl border border-border">
-          <div className="text-xs uppercase font-bold text-muted-foreground mb-2 tracking-wider">
-            Problem-to-Impact Lifecycle
-          </div>
-          <div className="flex items-center justify-between text-xs sm:text-sm overflow-x-auto no-scrollbar gap-2">
-            <span className="font-bold text-emerald-600 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> 1. Reported
-            </span>
-            <span className="text-muted-foreground">→</span>
-            <span className="font-bold text-emerald-600 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> 2. Verified
-            </span>
-            <span className="text-muted-foreground">→</span>
-            <span className="font-bold text-primary flex items-center gap-1 ring-2 ring-primary/20 px-2.5 py-1 rounded-full bg-primary/10">
-              <Users className="w-4 h-4" /> 3. Solution Active
-            </span>
-            <span className="text-muted-foreground">→</span>
-            <span className="text-muted-foreground">4. Prototype</span>
-            <span className="text-muted-foreground">→</span>
-            <span className="text-muted-foreground">5. Solved</span>
-          </div>
-        </div>
-
         {/* Badges & Title */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -250,6 +227,9 @@ export const ProblemDetailPage: React.FC<{ problemId?: string }> = ({ problemId:
           )}
         </div>
       </Card>
+
+      {/* Real-Time Problem Lifecycle Tracker & Impact Viewer */}
+      <ProblemTimeline problemId={problem.id} />
 
       {/* Discussion & Collaborative Input */}
       <Card className="p-5 sm:p-6 border-border space-y-4 rounded-2xl">

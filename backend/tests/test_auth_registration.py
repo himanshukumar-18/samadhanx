@@ -91,3 +91,30 @@ async def test_register_university_request_creates_pending(
     req = (await db_session.execute(select(RestrictedAccountRequest).where(RestrictedAccountRequest.org_name == "Birla Institute of Technology Mesra"))).scalar_one_or_none()
     assert req is not None
     assert req.status == RequestStatus.PENDING
+
+
+@pytest.mark.asyncio
+async def test_register_industry_request_creates_pending(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    payload = {
+        "email": "csr@tatasteel.com",
+        "password": "Password123!",
+        "company_name": "Tata Steel Limited",
+        "cin_number": "L27100MH1907PLC002604",
+        "website": "https://www.tatasteel.com",
+        "point_of_contact_name": "Ratan Sharma",
+        "designation": "CSR Lead",
+        "focus_sectors": ["CleanTech", "Agriculture Tech"],
+    }
+    response = await async_client.post("/api/v1/auth/register/industry-request", json=payload)
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["success"] is True
+    assert res_data["data"]["status"] == "pending_approval"
+    assert res_data["data"]["role"] == "industry"
+
+    req = (await db_session.execute(select(RestrictedAccountRequest).where(RestrictedAccountRequest.org_name == "Tata Steel Limited"))).scalar_one_or_none()
+    assert req is not None
+    assert req.status == RequestStatus.PENDING
+
