@@ -1,10 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { getApiBaseUrl } from './config';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE_URL = rawApiUrl.replace(/\/$/, '').endsWith('/api/v1')
-  ? rawApiUrl.replace(/\/$/, '')
-  : `${rawApiUrl.replace(/\/$/, '')}/api/v1`;
+export const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

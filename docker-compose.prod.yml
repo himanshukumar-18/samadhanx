@@ -1,19 +1,29 @@
+name: samadhanx-prod
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: samadhanx-prod-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 768M
+        reservations:
+          memory: 256M
     networks:
       - samadhanx_prod_net
 
@@ -21,14 +31,25 @@ services:
     image: redis:7-alpine
     container_name: samadhanx-prod-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-""}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: >
+      sh -c 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"'
     volumes:
       - redis_prod_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          memory: 64M
     networks:
       - samadhanx_prod_net
 
@@ -38,18 +59,31 @@ services:
       dockerfile: Dockerfile
     container_name: samadhanx-prod-backend
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
     environment:
       - ENVIRONMENT=production
       - DEBUG=false
-      - DATABASE_URL=${DATABASE_URL}
-      - SYNC_DATABASE_URL=${SYNC_DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-    ports:
-      - "8000:8000"
+      - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER is required}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:?POSTGRES_DB is required}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      - FRONTEND_URL=${FRONTEND_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - CLOUDINARY_URL=${CLOUDINARY_URL:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_TLS=${SMTP_TLS:-true}
+      - EMAILS_ENABLED=${EMAILS_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,6 +94,14 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          memory: 256M
     networks:
       - samadhanx_prod_net
 
@@ -69,40 +111,44 @@ services:
       dockerfile: Dockerfile
     container_name: samadhanx-prod-celery-worker
     restart: unless-stopped
-    command: celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=4
+    command: celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=1
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=${DATABASE_URL}
-      - SYNC_DATABASE_URL=${SYNC_DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=false
+      - POSTGRES_USER=${POSTGRES_USER:?POSTGRES_USER is required}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:?POSTGRES_DB is required}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      - FRONTEND_URL=${FRONTEND_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - CLOUDINARY_URL=${CLOUDINARY_URL:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_TLS=${SMTP_TLS:-true}
+      - EMAILS_ENABLED=${EMAILS_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - samadhanx_prod_net
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=${VITE_API_URL}
-    container_name: samadhanx-prod-frontend
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 600M
+        reservations:
+          memory: 150M
     networks:
       - samadhanx_prod_net
 
@@ -116,3 +162,4 @@ networks:
   samadhanx_prod_net:
     name: samadhanx_prod_network
     driver: bridge
+

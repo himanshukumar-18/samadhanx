@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient } from '../../../api/client';
 import { useApprovedUniversities } from '../../../hooks/useApprovedUniversities';
 import { useInstitutionSearch, InstitutionMasterItem } from '../../../hooks/useInstitutionSearch';
 import { InstitutionRequestModal } from '../components/InstitutionRequestModal';

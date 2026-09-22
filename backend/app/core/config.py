@@ -1,7 +1,8 @@
 import json
 from typing import Any, Literal
+from urllib.parse import quote_plus
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,12 +32,21 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    # Database URLs
+    # Database URLs & Components (Supports special characters via component encoding)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/samadhanx"
     SYNC_DATABASE_URL: str | None = None
+    POSTGRES_USER: str | None = None
+    POSTGRES_PASSWORD: str | None = None
+    POSTGRES_HOST: str | None = None
+    POSTGRES_PORT: int | None = None
+    POSTGRES_DB: str | None = None
 
-    # Redis URL
+    # Redis URL & Components (Supports special characters via component encoding)
     REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_HOST: str | None = None
+    REDIS_PORT: int | None = None
+    REDIS_PASSWORD: str | None = None
+    REDIS_DB: int = 0
 
     # Celery Configuration
     CELERY_BROKER_URL: str | None = None
@@ -48,6 +58,9 @@ class Settings(BaseSettings):
 
     # Media is persisted only after a successful Cloudinary upload.
     CLOUDINARY_URL: str | None = None
+
+    # AI & LLM Service Settings
+    GROQ_API_KEY: str | None = None
 
     # SMTP / Email Service Settings
     SMTP_HOST: str | None = None
@@ -72,6 +85,31 @@ class Settings(BaseSettings):
         elif isinstance(v, list):
             return [str(i) for i in v]
         return ["http://localhost:5173"]
+
+    @model_validator(mode="after")
+    def construct_database_and_redis_urls(self) -> "Settings":
+        # Handle PostgreSQL credentials with special characters
+        if self.POSTGRES_USER and self.POSTGRES_PASSWORD and self.POSTGRES_DB:
+            user = quote_plus(self.POSTGRES_USER)
+            pwd = quote_plus(self.POSTGRES_PASSWORD)
+            host = self.POSTGRES_HOST or "postgres"
+            port = self.POSTGRES_PORT or 5432
+            db = self.POSTGRES_DB
+            self.DATABASE_URL = f"postgresql+asyncpg://{user}:{pwd}@{host}:{port}/{db}"
+            self.SYNC_DATABASE_URL = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
+
+        # Handle Redis credentials with special characters
+        if self.REDIS_PASSWORD:
+            pwd = quote_plus(self.REDIS_PASSWORD)
+            host = self.REDIS_HOST or "redis"
+            port = self.REDIS_PORT or 6379
+            db = self.REDIS_DB
+            self.REDIS_URL = f"redis://:{pwd}@{host}:{port}/{db}"
+            if not self.CELERY_BROKER_URL:
+                self.CELERY_BROKER_URL = self.REDIS_URL
+            if not self.CELERY_RESULT_BACKEND:
+                self.CELERY_RESULT_BACKEND = self.REDIS_URL
+        return self
 
     @property
     def async_database_url(self) -> str:
