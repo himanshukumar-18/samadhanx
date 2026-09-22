@@ -71,6 +71,7 @@ async def get_current_user(
             selectinload(User.industry_profile),
             selectinload(User.university_profile),
             selectinload(User.restricted_request),
+            selectinload(User.profile_detail),
         )
         .where(User.id == user_id)
     )

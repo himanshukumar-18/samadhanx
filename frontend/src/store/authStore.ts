@@ -10,6 +10,7 @@ export interface UserData {
   is_active: boolean;
   full_name?: string | null;
   organization_name?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface AuthTokens {

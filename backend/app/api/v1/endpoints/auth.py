@@ -835,6 +835,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
             is_active=current_user.is_active,
             full_name=full_name,
             organization_name=org_name,
+            avatar_url=current_user.avatar_url,
         ),
     )
 

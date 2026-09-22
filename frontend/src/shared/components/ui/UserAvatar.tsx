@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface UserAvatarProps {
   src?: string | null;
@@ -15,6 +15,10 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
+  useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',
     sm: 'w-7 h-7 text-[10px]',
@@ -24,7 +28,17 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   };
 
   const dimensions = sizeClasses[size] || sizeClasses.md;
-  const initials = name ? name.trim().slice(0, 2).toUpperCase() : 'SX';
+  
+  const getInitials = (str?: string | null): string => {
+    if (!str || !str.trim()) return 'SX';
+    const parts = str.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+
+  const initials = getInitials(name);
 
   if (src && !imageError) {
     return (
@@ -33,6 +47,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         alt={name || 'User Profile'}
         onError={() => setImageError(true)}
         className={`${dimensions} rounded-full object-cover shadow-2xs ${className}`}
+        loading="lazy"
       />
     );
   }

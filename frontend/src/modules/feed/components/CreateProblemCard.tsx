@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ProblemCategory } from '../../../types/problem';
 import { useAuthStore } from '../../../store/authStore';
 import { useLanguageStore } from '../../../store/languageStore';
@@ -13,6 +13,7 @@ import { problemsApi } from '../../../api/problems';
 import toast from 'react-hot-toast';
 
 export const CreateProblemCard: React.FC<{ onCreated?: () => void }> = ({ onCreated }) => {
+  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
   const { language } = useLanguageStore();
   const t = (key: string) => getTranslation(language, key);
@@ -35,7 +36,7 @@ export const CreateProblemCard: React.FC<{ onCreated?: () => void }> = ({ onCrea
   const [isLocating, setIsLocating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const avatarUrl = myProfile?.avatar_url || myProfile?.profile_picture_url;
+  const avatarUrl = myProfile?.avatar_url || myProfile?.profile_picture_url || user?.avatar_url;
   const displayName = myProfile?.full_name || user?.full_name || user?.email;
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
@@ -139,6 +140,14 @@ export const CreateProblemCard: React.FC<{ onCreated?: () => void }> = ({ onCrea
       setMediaUrl(null);
       setMediaType(null);
       setIsOpen(false);
+
+      // Invalidate relevant query caches across the application
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['user-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['my-submitted-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['citizen-dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['right-sidebar-recent-problems'] });
+
       if (onCreated) onCreated();
     } catch (err: unknown) {
       const errorObj = err as { response?: { status?: number; data?: { error?: { message?: string }; detail?: { message?: string } } } };

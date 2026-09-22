@@ -97,7 +97,7 @@ async def get_user_public_problems(
         limit=limit,
         exclude_statuses=[ProblemStatus.REJECTED],
     )
-    return [await service.enrich_for_viewer(p, current_user) for p in problems]
+    return await service.batch_enrich_for_viewer(problems, current_user)
 
 
 class CitizenMeUpdate(CitizenProfileUpdate):

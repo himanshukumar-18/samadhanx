@@ -60,19 +60,38 @@ async def get_citizen_dashboard(
     current_user: Annotated[User, Depends(require_role([UserRole.CITIZEN, UserRole.ADMIN]))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    service = ProblemService(db)
-    my_problems = await service.list_problems(created_by_id=current_user.id, limit=50)
+    from app.models.problem import Problem
+    from app.models.project import SolutionProject
+    from sqlalchemy import func, select
 
-    solved_count = sum(1 for p in my_problems if p.status == "solved")
-    active_teams_count = sum(len(p.projects) for p in my_problems)
-    pending_review_count = sum(1 for p in my_problems if p.status in ["submitted", "under_review"])
+    status_stmt = (
+        select(Problem.status, func.count(Problem.id))
+        .where(Problem.created_by_id == current_user.id)
+        .group_by(Problem.status)
+    )
+    status_res = await db.execute(status_stmt)
+    status_counts = dict(status_res.all())
+
+    solved_count = status_counts.get(ProblemStatus.SOLVED, 0)
+    pending_review_count = (
+        status_counts.get(ProblemStatus.SUBMITTED, 0)
+        + status_counts.get(ProblemStatus.UNDER_REVIEW, 0)
+    )
+    total_submitted_count = sum(status_counts.values())
+
+    active_teams_stmt = (
+        select(func.count(SolutionProject.id))
+        .join(Problem, SolutionProject.problem_id == Problem.id)
+        .where(Problem.created_by_id == current_user.id)
+    )
+    active_teams_count = (await db.execute(active_teams_stmt)).scalar_one() or 0
 
     return {
         "user_name": current_user.citizen_profile.full_name if current_user.citizen_profile else current_user.email,
         "solved_problems_count": solved_count,
         "active_teams_count": active_teams_count,
         "pending_review_count": pending_review_count,
-        "total_submitted_count": len(my_problems),
+        "total_submitted_count": total_submitted_count,
     }
 
 
@@ -99,7 +118,8 @@ async def get_my_problems(
     limit: int = Query(20, ge=1, le=100),
 ):
     service = ProblemService(db)
-    return await service.list_problems(created_by_id=current_user.id, offset=offset, limit=limit)
+    problems = await service.list_problems(created_by_id=current_user.id, offset=offset, limit=limit)
+    return await service.batch_enrich_for_viewer(problems, current_user)
 
 
 # ---------------------------------------------------------------------------

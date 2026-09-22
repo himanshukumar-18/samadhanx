@@ -37,12 +37,14 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
     queryKey: ['my-profile-detail'],
     queryFn: profileApi.getMyProfile,
     enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: notifications } = useQuery({
     queryKey: ['unread-notifications-count'],
-    queryFn: () => notificationsApi.listNotifications(10),
+    queryFn: () => notificationsApi.listNotifications(15),
     enabled: isAuthenticated,
+    staleTime: 1000 * 30,
   });
 
   const unreadCount = Array.isArray(notifications)
@@ -61,7 +63,7 @@ export const TopNavbar: React.FC<{ onToggleMobileSidebar?: () => void; isMobileS
 
   const t = (key: string) => getTranslation(language, key);
 
-  const avatarUrl = myProfile?.avatar_url || myProfile?.profile_picture_url;
+  const avatarUrl = myProfile?.avatar_url || myProfile?.profile_picture_url || user?.avatar_url;
   const displayName = myProfile?.full_name || user?.full_name || user?.email;
 
   return (

@@ -99,6 +99,7 @@ export const RoleSidebar: React.FC<{ currentPath?: string; onItemClick?: () => v
     queryKey: ['unread-notifications-count'],
     queryFn: () => notificationsApi.listNotifications(15),
     enabled: isAuthenticated,
+    staleTime: 1000 * 30,
   });
 
   const { data: adminSummary } = useQuery({

@@ -80,7 +80,7 @@ class ProblemRepository:
                 selectinload(Problem.author).selectinload(User.university_profile),
                 selectinload(Problem.author).selectinload(User.industry_profile),
                 selectinload(Problem.author).selectinload(User.profile_detail),
-                selectinload(Problem.comments).selectinload(ProblemComment.author).selectinload(User.profile_detail),
+                selectinload(Problem.comments),
                 selectinload(Problem.endorsements),
                 selectinload(Problem.projects),
             )

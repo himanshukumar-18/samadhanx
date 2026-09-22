@@ -126,7 +126,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN avatar_url TYPE TEXT;"))
             await conn.execute(text("ALTER TABLE user_profile_details ALTER COLUMN cover_url TYPE TEXT;"))
             await conn.execute(text("ALTER TABLE citizen_profiles ALTER COLUMN profile_picture_url TYPE TEXT;"))
-        logger.info("Database tables and schema columns verified and updated successfully.")
+
+            # Safe additive performance indexes for fast feeds, profile lookups & notifications
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problems_status_created_at ON problems (status, created_at DESC);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problems_created_by_status ON problems (created_by_id, status);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problems_category_created_at ON problems (category, created_at DESC);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problem_saves_user_problem ON problem_saves (user_id, problem_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problem_shares_problem_id ON problem_shares (problem_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread ON notifications (recipient_id, is_read, created_at DESC);"))
+        logger.info("Database tables, indexes, and schema columns verified and updated successfully.")
     except Exception as e:
         logger.warning(f"Database auto-creation check note: {e}")
 

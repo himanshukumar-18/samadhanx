@@ -28,11 +28,14 @@ export const CitizenDashboard: React.FC = () => {
   const { data: metrics, isLoading: loadingMetrics } = useQuery({
     queryKey: ['citizen-dashboard-metrics'],
     queryFn: () => problemsApi.getCitizenDashboard(),
+    staleTime: 1000 * 60,
   });
 
   const { data: myProblems, isLoading: loadingProblems } = useQuery({
-    queryKey: ['my-submitted-problems'],
+    queryKey: ['user-problems', user?.id],
     queryFn: () => problemsApi.getMyProblems(),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 2,
   });
 
   return (

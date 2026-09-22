@@ -25,6 +25,7 @@ export const RightSidebar: React.FC = () => {
   const { data: recentProblems } = useQuery({
     queryKey: ['right-sidebar-recent-problems'],
     queryFn: () => problemsApi.listProblems({ limit: 4 }),
+    staleTime: 1000 * 60 * 5,
   });
 
   return (

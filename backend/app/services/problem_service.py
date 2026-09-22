@@ -26,11 +26,42 @@ class ProblemService:
         self.notification_repo = NotificationRepository(db)
         self.social_repo = SocialRepository(db)
 
+    async def batch_enrich_for_viewer(self, problems: Sequence[Problem], viewer: User | None) -> Sequence[Problem]:
+        if not problems:
+            return []
+
+        problem_ids = [p.id for p in problems]
+        saved_ids: set[uuid.UUID] = set()
+        if viewer:
+            from app.models.social import ProblemSave
+            from sqlalchemy import select
+            stmt = select(ProblemSave.problem_id).where(
+                ProblemSave.problem_id.in_(problem_ids),
+                ProblemSave.user_id == viewer.id,
+            )
+            res = await self.repo.db.execute(stmt)
+            saved_ids = set(res.scalars().all())
+
+        from app.models.social import ProblemShare
+        from sqlalchemy import func, select
+        share_stmt = (
+            select(ProblemShare.problem_id, func.count(ProblemShare.id))
+            .where(ProblemShare.problem_id.in_(problem_ids))
+            .group_by(ProblemShare.problem_id)
+        )
+        share_res = await self.repo.db.execute(share_stmt)
+        shares_map = dict(share_res.all())
+
+        for problem in problems:
+            problem.is_liked = bool(viewer and any(item.user_id == viewer.id for item in (problem.endorsements or [])))
+            problem.is_saved = problem.id in saved_ids
+            problem.shares_count = shares_map.get(problem.id, 0)
+
+        return problems
+
     async def enrich_for_viewer(self, problem: Problem, viewer: User | None) -> Problem:
-        problem.is_liked = bool(viewer and any(item.user_id == viewer.id for item in problem.endorsements))
-        problem.is_saved = bool(viewer and await self.social_repo.is_saved(problem.id, viewer.id))
-        problem.shares_count = await self.social_repo.get_share_count(problem.id)
-        return problem
+        enriched = await self.batch_enrich_for_viewer([problem], viewer)
+        return enriched[0] if enriched else problem
 
     async def create_problem(self, user: User, data: ProblemCreate) -> Problem:
         data_dict = data.model_dump()

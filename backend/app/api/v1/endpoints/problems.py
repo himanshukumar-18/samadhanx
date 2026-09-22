@@ -82,7 +82,7 @@ async def list_problems(
         offset=offset,
         limit=limit,
     )
-    return [await service.enrich_for_viewer(problem, current_user) for problem in problems]
+    return await service.batch_enrich_for_viewer(problems, current_user)
 
 
 @router.post("", response_model=ProblemResponse, status_code=status.HTTP_201_CREATED)

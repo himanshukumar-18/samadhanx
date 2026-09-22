@@ -13,6 +13,9 @@ class UserResponse(BaseModel):
     is_verified: bool
     is_active: bool
     is_approved: bool
+    full_name: str | None = None
+    organization_name: str | None = None
+    avatar_url: str | None = None
 
 
 class CitizenRegister(BaseModel):
