@@ -10,8 +10,10 @@ from app.models.base import BaseModel
 from app.models.enums import ImpactLevel, ProblemStatus
 
 if TYPE_CHECKING:
+    from app.models.problem_ai_analysis import ProblemAIAnalysis
     from app.models.project import SolutionProject
     from app.models.user import User
+
 
 
 class Problem(BaseModel):
@@ -57,9 +59,22 @@ class Problem(BaseModel):
         "ProblemEndorsement", back_populates="problem", cascade="all, delete-orphan"
     )
     projects: Mapped[list["SolutionProject"]] = relationship("SolutionProject", back_populates="problem")
+    ai_analyses: Mapped[list["ProblemAIAnalysis"]] = relationship(
+        "ProblemAIAnalysis",
+        back_populates="problem",
+        cascade="all, delete-orphan",
+        order_by="ProblemAIAnalysis.analysis_version.desc()",
+    )
+
+    @property
+    def latest_ai_analysis(self) -> "ProblemAIAnalysis | None":
+        if self.ai_analyses and len(self.ai_analyses) > 0:
+            return self.ai_analyses[0]
+        return None
 
     @property
     def likes_count(self) -> int:
+
         return len(self.endorsements or [])
 
     @property

@@ -15,11 +15,6 @@ export const TeamDetailPage: React.FC = () => {
   const parts = path.split('/').filter(Boolean);
   const teamId = parts.length > 1 && parts[0] === 'teams' && parts[1] !== 'create' ? parts[1] : null;
 
-  // If specific team/pod ID is in the URL, render that pod's workspace
-  if (teamId) {
-    return <ProjectWorkspacePage projectId={teamId} />;
-  }
-
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const isFaculty = user?.role === 'faculty';
@@ -31,7 +26,13 @@ export const TeamDetailPage: React.FC = () => {
   const { data: projects, isLoading } = useQuery({
     queryKey: ['all-teams-directory'],
     queryFn: () => projectsApi.listProjects({ limit: 50 }),
+    enabled: !teamId,
   });
+
+  // If specific team/pod ID is in the URL, render that pod's workspace
+  if (teamId) {
+    return <ProjectWorkspacePage projectId={teamId} />;
+  }
 
   const handleAdopt = async (projectId: string, title: string) => {
     setAdoptingId(projectId);

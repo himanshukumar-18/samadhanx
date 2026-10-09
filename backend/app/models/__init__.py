@@ -14,7 +14,9 @@ from app.models.notification import Notification
 from app.models.otp import OTPVerification
 from app.models.patent import PatentIP
 from app.models.problem import Problem, ProblemComment, ProblemEndorsement
+from app.models.problem_ai_analysis import ProblemAIAnalysis
 from app.models.profiles import (
+
     CitizenProfile,
     FacultyProfile,
     IndustryProfile,
@@ -54,8 +56,10 @@ __all__ = [
     "OTPVerification",
     "AuditLog",
     "Problem",
+    "ProblemAIAnalysis",
     "ProblemComment",
     "ProblemEndorsement",
+
     "UserFollow",
     "ProblemShare",
     "ProblemSave",

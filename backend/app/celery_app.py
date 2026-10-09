@@ -10,7 +10,10 @@ celery_app = Celery(
         "app.tasks.email",
         "app.tasks.health",
         "app.tasks.test_tasks",
+        "app.tasks.institution_sync_task",
+        "app.tasks.ai_moderation_task",
     ],
+
 )
 
 celery_app.conf.update(

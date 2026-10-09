@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -346,13 +347,24 @@ async def moderate_problem(
 
     updated = await service.repo.update_problem(problem, update_data)
 
+    # Fetch latest AI analysis if available for human override traceability
+    from app.ai_engine.services.ai_orchestrator import AIOrchestrator
+    latest_ai = await AIOrchestrator.get_latest_analysis(db, problem_id)
+    ai_recommendation = latest_ai.recommendation.value if (latest_ai and latest_ai.recommendation) else None
+
     # Audit Log
     audit = AuditLog(
         actor_id=current_admin.id,
         action="MODERATE_PROBLEM",
         target_type="problem",
         target_id=str(problem.id),
-        metadata_json={"new_status": data.status.value, "is_verified": data.is_verified},
+        metadata_json={
+            "new_status": data.status.value,
+            "is_verified": data.is_verified,
+            "ai_recommendation": ai_recommendation,
+            "human_decision": data.status.value,
+            "ai_override": bool(ai_recommendation and ai_recommendation != data.status.value),
+        },
     )
     db.add(audit)
 
@@ -372,6 +384,195 @@ async def moderate_problem(
 
     await db.commit()
     return updated
+
+
+# 4c. Retrieve AI Moderation Analysis & History for Problem
+@router.get("/problems/{problem_id}/ai-analysis", response_model=StandardApiResponse[dict])
+async def get_problem_ai_analysis(
+    problem_id: uuid.UUID,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.ai_engine.services.ai_orchestrator import AIOrchestrator
+    latest = await AIOrchestrator.get_latest_analysis(db, problem_id)
+    history = await AIOrchestrator.list_analysis_history(db, problem_id)
+
+    from app.ai_engine.schemas.moderation import PersistedAIAnalysisResponse
+
+    latest_data = PersistedAIAnalysisResponse.model_validate(latest).model_dump(mode="json") if latest else None
+    history_data = [PersistedAIAnalysisResponse.model_validate(h).model_dump(mode="json") for h in history]
+
+    return StandardApiResponse(
+        success=True,
+        data={
+            "latest": latest_data,
+            "history": history_data,
+        },
+        message="AI moderation analysis retrieved successfully.",
+    )
+
+
+# 4c-POST. On-Demand AI Analysis Generation (synchronous, cached, timeout-guarded)
+class AIAnalysisGenerateRequest(BaseModel):
+    force: bool = False
+
+
+@router.post("/problems/{problem_id}/ai-analysis", response_model=StandardApiResponse[dict])
+async def generate_problem_ai_analysis(
+    problem_id: uuid.UUID,
+    body: AIAnalysisGenerateRequest = AIAnalysisGenerateRequest(),
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Synchronous on-demand AI analysis generation for Admin moderation panel.
+
+    - Returns cached result immediately if a completed analysis exists within cooldown.
+    - Otherwise runs the full LangGraph pipeline inline (awaited), with a 15s timeout.
+    - Never blocks new problem submissions — this endpoint is Admin-only, on-demand.
+    """
+    import asyncio
+    import datetime as dt
+    from app.core.config import settings as app_settings
+    from app.ai_engine.services.ai_orchestrator import AIOrchestrator
+    from app.ai_engine.schemas.moderation import PersistedAIAnalysisResponse
+
+    # Guard: AI must be enabled
+    if not getattr(app_settings, "AI_ENABLED", True):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_SERVICE_UNAVAILABLE", "message": "AI moderation service is currently disabled."},
+        )
+
+    cooldown_secs = getattr(app_settings, "AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS", 60)
+    timeout_secs = getattr(app_settings, "AI_TIMEOUT_SECONDS", 15)
+
+    try:
+        analysis, was_cached = await asyncio.wait_for(
+            AIOrchestrator.generate_or_return_cached(
+                db=db,
+                problem_id=problem_id,
+                triggered_by_id=current_admin.id,
+                cooldown_secs=cooldown_secs,
+                force=body.force,
+            ),
+            timeout=float(timeout_secs) + 5,  # slight buffer over provider timeout
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail={
+                "code": "AI_ANALYSIS_TIMEOUT",
+                "message": f"AI inference did not complete within {timeout_secs}s. Please try again.",
+            },
+        )
+    except ValueError as e:
+        # Problem not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "PROBLEM_NOT_FOUND", "message": str(e)},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "code": "AI_ANALYSIS_FAILED",
+                "message": "AI analysis could not be completed. Check provider configuration and retry.",
+                "detail": str(e),
+            },
+        )
+
+    from app.models.enums import AIAnalysisStatus
+    if analysis.status == AIAnalysisStatus.FAILED:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "code": analysis.error_code or "AI_ANALYSIS_FAILED",
+                "message": analysis.error_message or "AI analysis could not be completed. Check provider configuration and retry.",
+            },
+        )
+
+    analysis_data = PersistedAIAnalysisResponse.model_validate(analysis).model_dump(mode="json")
+    msg = (
+        f"Returning cached AI analysis (generated {int((dt.datetime.now(dt.timezone.utc) - analysis.completed_at.replace(tzinfo=dt.timezone.utc)).total_seconds())}s ago)."
+        if was_cached and analysis.completed_at
+        else f"AI analysis version {analysis.analysis_version} completed with status: {analysis.status.value}."
+    )
+
+    return StandardApiResponse(
+        success=True,
+        data=analysis_data,
+        message=msg,
+    )
+
+
+
+
+# 4d. Trigger AI Re-Analysis on Demand (Admin only, cooldown enforced)
+@router.post("/problems/{problem_id}/reanalyze-ai", response_model=StandardApiResponse[dict])
+async def trigger_problem_ai_reanalysis(
+    problem_id: uuid.UUID,
+    data: dict | None = None,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    import datetime as dt
+    from app.core.config import settings as app_settings
+    from app.ai_engine.services.ai_orchestrator import AIOrchestrator
+    from app.ai_engine.schemas.moderation import PersistedAIAnalysisResponse
+
+    # Guard: manual re-analysis must be enabled
+    if not getattr(app_settings, "AI_MANUAL_REANALYSIS_ENABLED", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "AI_REANALYSIS_DISABLED", "message": "Manual AI re-analysis is currently disabled."},
+        )
+
+    # Cooldown enforcement: check when the last completed analysis ran
+    cooldown_secs = getattr(app_settings, "AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS", 60)
+    latest = await AIOrchestrator.get_latest_analysis(db, problem_id)
+    if latest and latest.completed_at:
+        elapsed = (dt.datetime.now(dt.timezone.utc) - latest.completed_at.replace(tzinfo=dt.timezone.utc)).total_seconds()
+        if elapsed < cooldown_secs:
+            remaining = int(cooldown_secs - elapsed)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "code": "AI_REANALYSIS_COOLDOWN",
+                    "message": f"Please wait {remaining}s before triggering another AI analysis.",
+                    "retry_after_seconds": remaining,
+                },
+            )
+
+    force = bool(data.get("force", False)) if data else False
+    reason = str(data.get("reason", "Admin manual re-evaluation")) if data else "Admin manual re-evaluation"
+
+    analysis = await AIOrchestrator.reanalyze_problem(
+        db=db,
+        problem_id=problem_id,
+        admin_user=current_admin,
+        force=force,
+        reason=reason,
+    )
+
+    from app.models.enums import AIAnalysisStatus
+    if analysis.status == AIAnalysisStatus.FAILED:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "code": analysis.error_code or "AI_ANALYSIS_FAILED",
+                "message": analysis.error_message or "AI analysis could not be completed. Check provider configuration and retry.",
+            },
+        )
+
+    analysis_data = PersistedAIAnalysisResponse.model_validate(analysis).model_dump(mode="json")
+
+    return StandardApiResponse(
+        success=True,
+        data=analysis_data,
+        message=f"AI analysis version {analysis.analysis_version} completed with status: {analysis.status.value}.",
+    )
+
+
 
 
 

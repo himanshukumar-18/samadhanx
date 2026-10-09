@@ -37,15 +37,29 @@ class ProblemService:
         data_dict["created_by_id"] = user.id
         data_dict["status"] = ProblemStatus.SUBMITTED
 
-        # Mock AI Insight summary generation
+        # Initial structured AI Insight placeholder while background worker executes
         data_dict["ai_insight"] = {
-            "summary": f"AI Problem Match: Categorized under {data.category} in {data.district}, {data.state}.",
-            "confidenceScore": 0.92,
-            "requiredSkills": [data.category, "Field Research", "Data Analysis", "Community Outreach"],
-            "matchedPeopleCount": 12,
+            "status": "QUEUED",
+            "summary": f"Submission received. AI Moderation analysis queued for {data.category}.",
+            "confidenceScore": None,
+            "spamProbability": None,
+            "qualityScore": None,
+            "recommendation": "PENDING",
+            "requiredSkills": [data.category, "Field Research", "Community Outreach"],
+            "matchedPeopleCount": 0,
         }
 
-        return await self.repo.create_problem(data_dict)
+        problem = await self.repo.create_problem(data_dict)
+
+        # Dispatch async Celery AI Moderation task (non-blocking)
+        try:
+            from app.tasks.ai_moderation_task import dispatch_ai_moderation_task
+            dispatch_ai_moderation_task(problem_id=problem.id, triggered_by_id=user.id)
+        except Exception:
+            pass
+
+        return problem
+
 
     async def get_problem(self, problem_id: uuid.UUID) -> Problem:
         problem = await self.repo.get_by_id(problem_id)

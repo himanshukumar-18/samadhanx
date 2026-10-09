@@ -59,6 +59,25 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-samadhanx-dev-secret-key-do-not-use-in-production-min-32-chars}
       - ALLOWED_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - AI_ENABLED=${AI_ENABLED:-true}
+      - AI_PROVIDER=${AI_PROVIDER:-groq}
+      - AI_MODEL=${AI_MODEL:-openai/gpt-oss-20b}
+      - AI_BASE_URL=${AI_BASE_URL:-https://api.groq.com/openai/v1}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_TIMEOUT_SECONDS=${AI_TIMEOUT_SECONDS:-30}
+      - AI_MAX_RETRIES=${AI_MAX_RETRIES:-2}
+      - AI_MAX_INPUT_LENGTH=${AI_MAX_INPUT_LENGTH:-6000}
+      - AI_MAX_OUTPUT_TOKENS=${AI_MAX_OUTPUT_TOKENS:-1200}
+      - AI_TEMPERATURE=${AI_TEMPERATURE:-0}
+      - AI_CONFIDENCE_THRESHOLD=${AI_CONFIDENCE_THRESHOLD:-0.70}
+      - AI_SPAM_REVIEW_THRESHOLD=${AI_SPAM_REVIEW_THRESHOLD:-0.80}
+      - AI_HIGH_RISK_THRESHOLD=${AI_HIGH_RISK_THRESHOLD:-0.70}
+      - AI_MANUAL_REANALYSIS_ENABLED=${AI_MANUAL_REANALYSIS_ENABLED:-true}
+      - AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS=${AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS:-60}
+      - AI_PROMPT_VERSION=${AI_PROMPT_VERSION:-v1}
+      - AI_CACHE_MODE=${AI_CACHE_MODE:-read_through}
+      - AI_DEBUG=${AI_DEBUG:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +109,25 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-samadhanx-dev-secret-key-do-not-use-in-production-min-32-chars}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - AI_ENABLED=${AI_ENABLED:-true}
+      - AI_PROVIDER=${AI_PROVIDER:-groq}
+      - AI_MODEL=${AI_MODEL:-openai/gpt-oss-20b}
+      - AI_BASE_URL=${AI_BASE_URL:-https://api.groq.com/openai/v1}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_TIMEOUT_SECONDS=${AI_TIMEOUT_SECONDS:-30}
+      - AI_MAX_RETRIES=${AI_MAX_RETRIES:-2}
+      - AI_MAX_INPUT_LENGTH=${AI_MAX_INPUT_LENGTH:-6000}
+      - AI_MAX_OUTPUT_TOKENS=${AI_MAX_OUTPUT_TOKENS:-1200}
+      - AI_TEMPERATURE=${AI_TEMPERATURE:-0}
+      - AI_CONFIDENCE_THRESHOLD=${AI_CONFIDENCE_THRESHOLD:-0.70}
+      - AI_SPAM_REVIEW_THRESHOLD=${AI_SPAM_REVIEW_THRESHOLD:-0.80}
+      - AI_HIGH_RISK_THRESHOLD=${AI_HIGH_RISK_THRESHOLD:-0.70}
+      - AI_MANUAL_REANALYSIS_ENABLED=${AI_MANUAL_REANALYSIS_ENABLED:-true}
+      - AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS=${AI_MANUAL_REANALYSIS_COOLDOWN_SECONDS:-60}
+      - AI_PROMPT_VERSION=${AI_PROMPT_VERSION:-v1}
+      - AI_CACHE_MODE=${AI_CACHE_MODE:-read_through}
+      - AI_DEBUG=${AI_DEBUG:-true}
     depends_on:
       postgres:
         condition: service_healthy

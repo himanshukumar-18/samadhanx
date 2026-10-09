@@ -104,3 +104,21 @@ class PreferredLanguage(StrEnum):
     KN = "kn"
     ML = "ml"
     PA = "pa"
+
+
+class AIAnalysisStatus(StrEnum):
+    NOT_STARTED = "not_started"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RETRYING = "retrying"
+    TIMEOUT = "timeout"
+
+
+class AIModerationRecommendation(StrEnum):
+    NORMAL_REVIEW = "normal_review"
+    SPAM_REVIEW = "spam_review"
+    HIGH_RISK_ESCALATION = "high_risk_escalation"
+    HUMAN_REVIEW_REQUIRED = "human_review_required"
+
