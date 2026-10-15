@@ -44,7 +44,8 @@ export interface ModerationProblemItem {
   state: string;
   latitude?: number | null;
   longitude?: number | null;
-  status: 'submitted' | 'under_review' | 'verified' | 'rejected' | 'in_progress' | 'solution_submitted' | 'pilot' | 'solved';
+  status: 'submitted' | 'under_review' | 'verified' | 'rejected' | 'in_progress' | 'solution_submitted' | 'pilot' | 'solved' | 'duplicate';
+
   impact_level: 'low' | 'medium' | 'high' | 'critical';
   created_by_id: string;
   is_verified: boolean;

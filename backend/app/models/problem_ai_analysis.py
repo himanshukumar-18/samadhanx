@@ -25,6 +25,7 @@ class ProblemAIAnalysis(BaseModel):
         index=True,
     )
     analysis_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False, index=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     status: Mapped[AIAnalysisStatus] = mapped_column(
         SQLEnum(AIAnalysisStatus, name="ai_analysis_status_enum"),

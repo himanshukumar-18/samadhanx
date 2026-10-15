@@ -19,6 +19,7 @@ from app.ai_engine.providers.base import ModelProvider
 from app.ai_engine.providers.factory import get_model_provider
 from app.ai_engine.schemas.common import ProblemAnalysisInput
 from app.ai_engine.services.moderation_service import AIModerationService
+from app.ai_engine.services.embedder import EmbedderService
 
 
 class AIOrchestrator:
@@ -99,6 +100,10 @@ class AIOrchestrator:
             state=problem.state,
             author_id=problem.created_by_id,
         )
+        content_hash = EmbedderService.compute_hash(
+            EmbedderService.normalize_text(problem.title, problem.description)
+        )
+        analysis.content_hash = content_hash
 
         # 5. Run moderation pipeline
         moderation_service = AIModerationService(provider=active_provider)
@@ -183,11 +188,21 @@ class AIOrchestrator:
 
         if not bypass_cache:
             latest = await AIOrchestrator.get_latest_analysis(db, problem_id)
+            problem_result = await db.execute(select(Problem).where(Problem.id == problem_id))
+            current_problem = problem_result.scalar_one_or_none()
+            current_hash = (
+                EmbedderService.compute_hash(
+                    EmbedderService.normalize_text(current_problem.title, current_problem.description)
+                )
+                if current_problem
+                else None
+            )
             # In production, never return an obsolete fake analysis as a cached result
             allow_cached = (
                 latest is not None
                 and latest.status == AIAnalysisStatus.COMPLETED
                 and latest.completed_at is not None
+                and latest.content_hash == current_hash
                 and (
                     (settings.provider == "fake" and latest.provider in ("fake", "fake-model"))
                     or (settings.provider == "groq" and latest.provider not in ("fake", "fake-model", ""))

@@ -14,6 +14,12 @@ from app.ai_engine.exceptions import (
 from app.ai_engine.providers.base import ModelProvider
 from app.ai_engine.schemas.common import RiskFlag, RiskFlagType, RiskSeverity
 from app.ai_engine.schemas.moderation import ProblemModerationOutput
+from app.ai_engine.schemas.problem_assistant import (
+    AssistantExtractionOutput,
+    AssistantProblemState,
+    AssistantQuestionOutput,
+    GeneratedProblemDraft,
+)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -72,6 +78,47 @@ class FakeAIProvider(ModelProvider):
         # 2. Fixed override if provided
         if self.fixed_output is not None:
             return self.fixed_output, telemetry  # type: ignore
+
+        # Assistant Schemas support
+        if schema == AssistantExtractionOutput:
+            has_location = "barka" in prompt.lower() or "namkum" in prompt.lower() or "ranchi" in prompt.lower()
+            out = AssistantExtractionOutput(
+                extracted_state=AssistantProblemState(
+                    category="Smart Infrastructure & Roads",
+                    title="Damaged road and waterlogging",
+                    description="Severe road breakage with deep potholes and water stagnation.",
+                    location="Barka" if has_location else None,
+                    district="Ranchi" if has_location else None,
+                    state="Jharkhand" if has_location else None,
+                    severity="high",
+                    duration="6 months" if "6 months" in prompt.lower() else None,
+                ),
+                missing_fields=[] if has_location else ["location"],
+                is_ready_for_draft=has_location,
+            )
+            return out, telemetry  # type: ignore
+
+        if schema == AssistantQuestionOutput:
+            out = AssistantQuestionOutput(
+                question="Which specific area or village is experiencing this road damage?",
+                field="location",
+                suggested_answers=["Barka Village", "Namkum Chowk", "Main Road"],
+            )
+            return out, telemetry  # type: ignore
+
+        if schema == GeneratedProblemDraft:
+            out = GeneratedProblemDraft(
+                title="Severe Road Damage and Waterlogging in Barka Village",
+                description="The connecting road in Barka Village has broken down with persistent waterlogging, causing safety risks for school children and daily commuters.",
+                category="Smart Infrastructure & Roads",
+                location="Barka",
+                district="Ranchi",
+                state="Jharkhand",
+                severity="high",
+                impact="Daily commute is blocked and vehicles are stranded during rain.",
+                tags=["Roads", "Infrastructure", "Waterlogging", "Safety"],
+            )
+            return out, telemetry  # type: ignore
 
         # 3. Dynamic content inspection heuristics for test assertions
         prompt_lower = prompt.lower()

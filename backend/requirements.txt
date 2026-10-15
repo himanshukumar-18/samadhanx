@@ -27,6 +27,12 @@ cloudinary>=1.41.0
 # Infrastructure & Background Workers
 redis>=5.0.8
 celery>=5.4.0
+langchain>=0.3.0
+langgraph>=0.2.0
+
+# Embeddings (ONNX-based, no PyTorch — ~21 MB vs 454 MB for torch)
+fastembed>=0.9.0
+rapidfuzz>=3.9.0
 
 # HTTP & Utilities
 httpx>=0.27.2
@@ -35,7 +41,6 @@ python-multipart>=0.0.12
 # AI Engine & Automation Layer
 langchain-core>=0.3.0
 langchain-openai>=0.2.0
-langgraph>=0.2.0
 groq>=0.9.0
 
 # Testing & Quality (Development & CI)

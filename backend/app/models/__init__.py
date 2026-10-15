@@ -1,5 +1,7 @@
 from app.models.account_settings import AccountSettings
 from app.models.audit_log import AuditLog
+from app.models.ai import AIDecisionLog, AIFeedback
+from app.models.ai_session import AIAssistantSession
 from app.models.base import Base, BaseModel
 from app.models.chat import ChatMessage
 from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
@@ -15,7 +17,9 @@ from app.models.otp import OTPVerification
 from app.models.patent import PatentIP
 from app.models.problem import Problem, ProblemComment, ProblemEndorsement
 from app.models.problem_ai_analysis import ProblemAIAnalysis
+from app.models.problem_duplicate_link import ProblemDuplicateLink
 from app.models.profiles import (
+
 
     CitizenProfile,
     FacultyProfile,
@@ -55,10 +59,14 @@ __all__ = [
     "RestrictedAccountRequest",
     "OTPVerification",
     "AuditLog",
+    "AIDecisionLog",
+    "AIFeedback",
+    "AIAssistantSession",
     "Problem",
     "ProblemAIAnalysis",
     "ProblemComment",
     "ProblemEndorsement",
+    "ProblemDuplicateLink",
 
     "UserFollow",
     "ProblemShare",

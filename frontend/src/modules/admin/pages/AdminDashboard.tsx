@@ -855,7 +855,13 @@ export const AdminDashboard: React.FC = () => {
                         <Badge variant={prob.status === 'solved' ? 'admin' : prob.status === 'in_progress' ? 'student' : 'faculty'}>
                           {prob.status.replace('_', ' ')}
                         </Badge>
+                        {prob.status === 'duplicate' && (
+                          <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300">
+                            Merged Duplicate
+                          </span>
+                        )}
                         <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded ${
+
                           prob.impact_level === 'critical' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground'
                         }`}>
                           {prob.impact_level} Impact

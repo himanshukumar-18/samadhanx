@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_active_user, get_db, get_optional_current_user
 from app.models.enums import ProblemStatus
 from app.models.user import User
+from app.core.rate_limit import rate_limiter
+from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+from app.schemas.duplicate import DuplicateCheckRequest, DuplicateCheckResponse
 from app.schemas.problem import (
     CommentCreate,
     CommentResponse,
@@ -18,6 +21,7 @@ from app.schemas.problem import (
 from app.services.problem_service import ProblemService
 
 router = APIRouter(prefix="/problems", tags=["Problems Engine"])
+
 
 
 def comment_response(comment):
@@ -93,6 +97,18 @@ async def create_problem(
 ):
     service = ProblemService(db)
     return await service.create_problem(user=current_user, data=data)
+
+
+@router.post("/duplicate-check", response_model=DuplicateCheckResponse)
+async def check_problem_duplicates(
+    data: DuplicateCheckRequest,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _rl: None = Depends(rate_limiter(requests_per_minute=20, key_prefix="dup_check")),
+):
+    """Fail-open citizen pre-check; this static route must precede /{problem_id}."""
+    service = DuplicateDetectionService(db)
+    return await service.precheck(title=data.title, description=data.description, category=data.category, district=data.district)
 
 
 @router.get("/{problem_id}", response_model=ProblemResponse)
@@ -171,3 +187,5 @@ async def toggle_endorsement(
     service = ProblemService(db)
     is_endorsed = await service.toggle_endorsement(user=current_user, problem_id=problem_id)
     return {"endorsed": is_endorsed, "problem_id": problem_id}
+
+

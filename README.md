@@ -166,7 +166,15 @@ uvicorn app.main:app --reload --port 8000
 
 # Start Celery Worker (in a separate terminal)
 celery -A app.celery_app.celery_app worker --loglevel=info
+
+# Backfill embeddings for old and seeded problems (safe to rerun)
+python -m app.commands.backfill_embeddings
+
+# Offline duplicate threshold evaluation
+python ai/eval/run_duplicate_eval.py
 ```
+
+AI duplicate routing currently uses LOW=0.75 for candidate recall and HIGH=0.90 for strong duplicate flags. The evaluator is offline-capable and prints precision/recall/F1 across thresholds; real provider calls are never required for CI.
 
 ### Frontend Setup:
 - Requires **Node.js 20+** and npm.

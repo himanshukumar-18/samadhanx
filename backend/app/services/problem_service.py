@@ -58,7 +58,15 @@ class ProblemService:
         except Exception:
             pass
 
+        # Dispatch async Celery Duplicate Detection task (non-blocking)
+        try:
+            from app.tasks.duplicate_detection_task import dispatch_duplicate_detection_task
+            dispatch_duplicate_detection_task(problem_id=problem.id)
+        except Exception:
+            pass
+
         return problem
+
 
 
     async def get_problem(self, problem_id: uuid.UUID) -> Problem:

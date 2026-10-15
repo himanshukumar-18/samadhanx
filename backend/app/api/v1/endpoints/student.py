@@ -2,16 +2,17 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, get_db, require_role
 from app.models.audit_log import AuditLog
-from app.models.enums import NotificationType, ProjectStatus, RequestStatus, UserRole
+from app.models.enums import NotificationType, ProblemStatus, ProjectStatus, RequestStatus, UserRole
 from app.models.impact_report import ImpactReport
 from app.models.industry_support import IndustrySupport
 from app.models.notification import Notification
+from app.models.problem import Problem
 from app.models.profiles import StudentProfile
 from app.models.project import ProjectMember, SolutionProject
 from app.models.user import User
@@ -26,8 +27,76 @@ from app.schemas.student import (
     StudentProfileUpdate,
 )
 from app.services.project_service import ProjectService
+from app.ai_engine.services.embedder import EmbedderService
 
 router = APIRouter(prefix="/student", tags=["Student Workspace"])
+
+
+@router.get("/recommended-problems", response_model=dict)
+async def recommended_problems(
+    limit: int = Query(10, ge=1, le=30),
+    category: str | None = Query(None, max_length=100),
+    district: str | None = Query(None, max_length=100),
+    current_user: User = Depends(require_role([UserRole.STUDENT])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return deterministic, privacy-safe recommendations for the current student."""
+    from app.core.config import settings
+    if not getattr(settings, "AI_MATCHING_ENABLED", True):
+        return {"success": True, "data": {"reason": "disabled", "items": []}}
+    profile = current_user.student_profile
+    skills = {str(s).strip().lower() for s in (profile.skills or []) if str(s).strip()} if profile else set()
+    solved_problem_ids = set(
+        (await db.execute(select(SolutionProject.problem_id).where(SolutionProject.lead_student_id == current_user.id))).scalars().all()
+    )
+    query = select(Problem).where(Problem.status == ProblemStatus.VERIFIED)
+    if category:
+        query = query.where(Problem.category.ilike(category.strip()))
+    if district:
+        query = query.where(Problem.district.ilike(district.strip()))
+    problems = list((await db.execute(query.order_by(desc(Problem.created_at)).limit(30))).scalars().all())
+    if not skills:
+        fallback = [p for p in problems if p.id not in solved_problem_ids][:limit]
+        return {"success": True, "data": {"reason": "complete_profile", "hint": "Add skills to get better matches.", "items": [_recommendation_item(p, [], "fair") for p in fallback]}}
+
+    profile_text = " ".join(sorted(skills))
+    profile_vec = None
+    try:
+        profile_vec = EmbedderService.get_embedding(profile_text)
+    except Exception:
+        pass
+    ranked = []
+    for problem in problems:
+        if problem.id in solved_problem_ids:
+            continue
+        haystack = f"{problem.title} {problem.description} {problem.category}".lower()
+        overlap = sorted({skill for skill in skills if skill in haystack})
+        vector_score = 0.0
+        if profile_vec and problem.embedding:
+            vector_score = sum(a * b for a, b in zip(profile_vec, problem.embedding, strict=False))
+        score = len(overlap) * 0.25 + vector_score * 0.65
+        if profile and profile.university and problem.district.lower() == profile.university.district.lower():
+            score += 0.1
+        ranked.append((score, problem, overlap))
+    ranked.sort(key=lambda row: (row[0], row[1].created_at), reverse=True)
+    items = []
+    for score, problem, overlap in ranked[:limit]:
+        label = "strong" if score >= 0.65 else "good" if score >= 0.35 else "fair"
+        items.append(_recommendation_item(problem, overlap, label))
+    return {"success": True, "data": {"reason": "matched", "items": items}}
+
+
+def _recommendation_item(problem: Problem, matched_skills: list[str], match_label: str) -> dict:
+    return {
+        "problem_id": str(problem.id),
+        "title": problem.title,
+        "category": problem.category,
+        "district": problem.district,
+        "status": problem.status.value if hasattr(problem.status, "value") else str(problem.status),
+        "match_label": match_label,
+        "matched_skills": matched_skills[:8],
+        "reason": "Matches your skills" if matched_skills else "Complete your profile to improve matches",
+    }
 
 # ---------------------------------------------------------------------------
 # Helpers

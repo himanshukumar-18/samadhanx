@@ -1,13 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_db, require_role
+from app.core.deps import get_current_active_user, get_db, require_role
 from app.models.audit_log import AuditLog
 from app.models.enums import (
     NotificationType,
@@ -32,13 +32,37 @@ from app.schemas.admin import (
     RestrictedRequestResponse,
 )
 from app.schemas.common import StandardApiResponse
+from app.core.rate_limit import rate_limiter
+from app.schemas.duplicate import (
+    AIHealthResponse,
+    DuplicateLinkResponse,
+    MergeRequest,
+    MergeResponse,
+)
 from app.schemas.problem import ProblemModerationUpdate, ProblemResponse
 from app.services.problem_service import ProblemService
 from app.api.v1.endpoints.public import invalidate_public_universities_cache
 from app.tasks.email import send_approval_email_task, send_rejection_email_task
 
 
+
 router = APIRouter(prefix="/admin", tags=["Admin Operations"])
+
+
+class AIFeedbackRequest(BaseModel):
+    feature: str
+    entity_id: str
+    rating: str
+    comment: str | None = None
+
+
+class AIAcceptCategoryRequest(BaseModel):
+    category: str
+
+
+class AIImpactReportRequest(BaseModel):
+    period: str = "30d"
+    district: str | None = None
 
 
 # 0. Live Summary Counts for Badges & Executive Overview
@@ -407,9 +431,98 @@ async def get_problem_ai_analysis(
         data={
             "latest": latest_data,
             "history": history_data,
+            "reason": "not_generated" if latest is None else None,
         },
-        message="AI moderation analysis retrieved successfully.",
+        message=("AI moderation analysis retrieved successfully." if latest else "No analysis generated yet; use Generate AI Insight.") ,
     )
+
+
+@router.patch("/problems/{problem_id}/accept-ai-category", response_model=ProblemResponse)
+async def accept_ai_category(
+    problem_id: uuid.UUID,
+    body: AIAcceptCategoryRequest,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Apply a category suggestion only after an explicit admin action."""
+    from app.ai_engine.services.ai_orchestrator import AIOrchestrator
+
+    problem = await db.get(Problem, problem_id)
+    latest = await AIOrchestrator.get_latest_analysis(db, problem_id)
+    if not problem or not latest or not latest.category or body.category != latest.category:
+        raise HTTPException(status_code=400, detail={"code": "AI_CATEGORY_NOT_AVAILABLE", "message": "No matching AI category suggestion is available."})
+    old_category = problem.category
+    problem.category = latest.category
+    db.add(AuditLog(
+        actor_id=current_admin.id,
+        action="AI_CATEGORY_ACCEPTED",
+        target_type="problem",
+        target_id=str(problem_id),
+        metadata_json={"old_category": old_category, "new_category": latest.category, "analysis_id": str(latest.id)},
+    ))
+    await db.commit()
+    await db.refresh(problem)
+    return problem
+
+
+@router.post("/ai/feedback", response_model=StandardApiResponse[dict])
+async def submit_ai_feedback(
+    body: AIFeedbackRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.ai import AIFeedback
+    if body.rating not in {"up", "down"}:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_AI_FEEDBACK", "message": "Rating must be up or down."})
+    if len(body.feature) > 64 or len(body.entity_id) > 128 or (body.comment and len(body.comment) > 300):
+        raise HTTPException(status_code=422, detail={"code": "INVALID_AI_FEEDBACK", "message": "Feedback fields exceed their limits."})
+    db.add(AIFeedback(feature=body.feature, entity_id=body.entity_id, user_id=current_user.id, rating=body.rating, comment=body.comment))
+    await db.commit()
+    return StandardApiResponse(success=True, data={"recorded": True})
+
+
+@router.post("/ai/impact-report", response_model=StandardApiResponse[dict])
+async def generate_ai_impact_report(
+    body: AIImpactReportRequest,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+    _rl: None = Depends(rate_limiter(requests_per_minute=5, key_prefix="ai_impact")),
+):
+    """Create a number-verifiable deterministic report from aggregate stats."""
+    from datetime import timedelta
+    from app.core.config import settings as app_settings
+    if not getattr(app_settings, "AI_IMPACT_ENABLED", True):
+        raise HTTPException(status_code=503, detail={"code": "AI_DISABLED", "message": "Impact AI is disabled."})
+    from app.models.project import SolutionProject
+    period_days = {"7d": 7, "30d": 30, "all": None}.get(body.period)
+    if body.period not in {"7d", "30d", "all"}:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_REPORT_PERIOD", "message": "Period must be 7d, 30d, or all."})
+    cutoff = datetime.now(UTC) - timedelta(days=period_days) if period_days else None
+    problem_filter = []
+    if cutoff:
+        problem_filter.append(Problem.created_at >= cutoff)
+    if body.district:
+        problem_filter.append(Problem.district.ilike(body.district.strip()))
+    total = (await db.execute(select(func.count(Problem.id)).where(*problem_filter))).scalar() or 0
+    solved = (await db.execute(select(func.count(Problem.id)).where(Problem.status == ProblemStatus.SOLVED, *problem_filter))).scalar() or 0
+    verified = (await db.execute(select(func.count(Problem.id)).where(Problem.status == ProblemStatus.VERIFIED, *problem_filter))).scalar() or 0
+    pods = (await db.execute(select(func.count(SolutionProject.id)).where(*([SolutionProject.created_at >= cutoff] if cutoff else [])))).scalar() or 0
+    stats = {"problems_reported": total, "approved": verified, "solved": solved, "active_pods": pods, "period": body.period, "district": body.district}
+    narrative = {
+        "headline": f"SamadhanX recorded {total} problem reports in the selected period.",
+        "highlights": [f"{verified} problems are verified.", f"{solved} problems are solved.", f"{pods} solution pods are active."],
+        "risk": "Some reports still need verification." if total > verified else "Continue monitoring verification capacity.",
+        "suggestion": "Prioritize older unverified reports and maintain regular pod updates.",
+        "template": True,
+        "stats": stats,
+        "based_on": f"Based on {body.period} aggregate data" + (f" for {body.district}." if body.district else "."),
+    }
+    return StandardApiResponse(success=True, data=narrative, message="Template summary generated from aggregate platform data.")
+
+
+@router.get("/ai/impact-report/latest", response_model=StandardApiResponse[dict])
+async def latest_ai_impact_report(current_admin: User = Depends(require_role([UserRole.ADMIN]))):
+    return StandardApiResponse(success=True, data=None, message="No persisted impact report is available yet.")
 
 
 # 4c-POST. On-Demand AI Analysis Generation (synchronous, cached, timeout-guarded)
@@ -421,6 +534,7 @@ class AIAnalysisGenerateRequest(BaseModel):
 async def generate_problem_ai_analysis(
     problem_id: uuid.UUID,
     body: AIAnalysisGenerateRequest = AIAnalysisGenerateRequest(),
+    force: bool = Query(False),
     current_admin: User = Depends(require_role([UserRole.ADMIN])),
     db: AsyncSession = Depends(get_db),
 ):
@@ -437,7 +551,7 @@ async def generate_problem_ai_analysis(
     from app.ai_engine.schemas.moderation import PersistedAIAnalysisResponse
 
     # Guard: AI must be enabled
-    if not getattr(app_settings, "AI_ENABLED", True):
+    if not (getattr(app_settings, "AI_ENABLED", True) and getattr(app_settings, "AI_MODERATION_ENABLED", True)):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "AI_SERVICE_UNAVAILABLE", "message": "AI moderation service is currently disabled."},
@@ -453,7 +567,7 @@ async def generate_problem_ai_analysis(
                 problem_id=problem_id,
                 triggered_by_id=current_admin.id,
                 cooldown_secs=cooldown_secs,
-                force=body.force,
+                force=body.force or force,
             ),
             timeout=float(timeout_secs) + 5,  # slight buffer over provider timeout
         )
@@ -736,3 +850,113 @@ async def get_platform_analytics(
 
     return StandardApiResponse(success=True, data=analytics, message="Platform analytics generated successfully.")
 
+
+# ---------------------------------------------------------
+# Duplicate Problem Detection & Deduplication Workflows
+# ---------------------------------------------------------
+
+@router.get(
+    "/problems/{problem_id}/duplicates",
+    response_model=StandardApiResponse[list[DuplicateLinkResponse]],
+    summary="Get duplicate links and candidate problems for a problem",
+)
+async def get_problem_duplicates(
+    problem_id: uuid.UUID,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+    service = DuplicateDetectionService(db)
+    links = await service.get_duplicates_for_problem(problem_id)
+    return StandardApiResponse(success=True, data=links, message="Duplicate links retrieved.")
+
+
+@router.post(
+    "/problems/{problem_id}/duplicates/run",
+    response_model=StandardApiResponse[list[DuplicateLinkResponse]],
+    summary="Run on-demand duplicate detection analysis for a problem",
+)
+async def run_problem_duplicate_detection(
+    problem_id: uuid.UUID,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+    _rl: None = Depends(rate_limiter(requests_per_minute=10, key_prefix="admin_dup_run")),
+):
+    from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+    problem = await db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "PROBLEM_NOT_FOUND", "message": "Problem not found."},
+        )
+
+    service = DuplicateDetectionService(db)
+    links, degraded = await service.run_moderation_detection(problem, save_links=True)
+    msg = "Duplicate detection completed with degraded mode (fail open)" if degraded else "Duplicate detection completed."
+    return StandardApiResponse(success=True, data=links, message=msg)
+
+
+@router.post(
+    "/problems/{problem_id}/merge",
+    response_model=StandardApiResponse[MergeResponse],
+    summary="Transactionally merge a duplicate problem into a canonical problem",
+)
+async def merge_duplicate_problem(
+    problem_id: uuid.UUID,
+    data: MergeRequest,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+    _rl: None = Depends(rate_limiter(requests_per_minute=15, key_prefix="admin_merge")),
+):
+    from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+    service = DuplicateDetectionService(db)
+    res = await service.merge_problems(
+        problem_id=problem_id,
+        target_problem_id=data.target_problem_id,
+        admin_user=current_admin,
+    )
+    return StandardApiResponse(success=True, data=res, message=res.message)
+
+
+@router.post(
+    "/problems/{problem_id}/duplicates/{link_id}/dismiss",
+    response_model=StandardApiResponse[dict],
+    summary="Dismiss a duplicate candidate link as not a duplicate",
+)
+async def dismiss_duplicate_candidate(
+    problem_id: uuid.UUID,
+    link_id: uuid.UUID,
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+    service = DuplicateDetectionService(db)
+    await service.dismiss_link(
+        problem_id=problem_id,
+        link_id=link_id,
+        admin_user=current_admin,
+    )
+    return StandardApiResponse(
+        success=True,
+        data={"link_id": str(link_id), "status": "dismissed"},
+        message="Duplicate candidate link successfully dismissed.",
+    )
+
+
+@router.get(
+    "/ai/health",
+    response_model=StandardApiResponse[AIHealthResponse],
+    summary="Diagnostic health check for AI embedder and pgvector storage",
+)
+async def get_ai_and_embedding_health(
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.ai_engine.services.duplicate_service import DuplicateDetectionService
+    service = DuplicateDetectionService(db)
+    health_info = await service.get_health()
+    return StandardApiResponse(
+        success=True,
+        data=health_info,
+        message="AI and vector embedding health retrieved.",
+    )

@@ -7,8 +7,9 @@ import { Card } from '../../../shared/components/ui/Card';
 import { Button } from '../../../shared/components/ui/Button';
 import { Badge } from '../../../shared/components/ui/Badge';
 import { Skeleton } from '../../../shared/components/ui/Skeleton';
-import { PlusCircle, MapPin, CheckCircle, Clock, AlertTriangle, FileText } from 'lucide-react';
+import { PlusCircle, MapPin, CheckCircle, Clock, AlertTriangle, FileText, Sparkles } from 'lucide-react';
 import { problemsApi } from '../../../api/problems';
+import { SmartProblemAssistant } from '../components/SmartProblemAssistant';
 
 interface ProblemItem {
   id: string;
@@ -25,12 +26,14 @@ export const CitizenDashboard: React.FC = () => {
   const { language } = useLanguageStore();
   const t = (key: string) => getTranslation(language, key);
 
+  const [showAssistantModal, setShowAssistantModal] = React.useState(false);
+
   const { data: metrics, isLoading: loadingMetrics } = useQuery({
     queryKey: ['citizen-dashboard-metrics'],
     queryFn: () => problemsApi.getCitizenDashboard(),
   });
 
-  const { data: myProblems, isLoading: loadingProblems } = useQuery({
+  const { data: myProblems, isLoading: loadingProblems, refetch: refetchMyProblems } = useQuery({
     queryKey: ['my-submitted-problems'],
     queryFn: () => problemsApi.getMyProblems(),
   });
@@ -51,10 +54,35 @@ export const CitizenDashboard: React.FC = () => {
             {language === 'hi' ? 'स्वागत है,' : 'Welcome,'} <strong className="text-foreground">{user?.full_name || user?.email}</strong>. {language === 'hi' ? 'विश्वविद्यालय और छात्र नवाचार के लिए अपने क्षेत्र में सामाजिक समस्याओं की रिपोर्ट करें।' : 'Report societal problems in your area for university & student innovation.'}
           </p>
         </div>
-        <Button onClick={() => (window.location.href = '/')} leftIcon={<PlusCircle className="w-4 h-4" />}>
-          {t('report_issue')}
-        </Button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowAssistantModal(true)}
+            className="border-primary/40 text-primary hover:bg-primary/10 font-bold"
+            leftIcon={<Sparkles className="w-4 h-4 text-primary" />}
+          >
+            Smart Assistant
+          </Button>
+          <Button onClick={() => (window.location.href = '/')} leftIcon={<PlusCircle className="w-4 h-4" />}>
+            {t('report_issue')}
+          </Button>
+        </div>
       </div>
+
+      {/* Smart Assistant Modal */}
+      {showAssistantModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-2xl">
+            <SmartProblemAssistant
+              onSuccess={() => {
+                setShowAssistantModal(false);
+                refetchMyProblems();
+              }}
+              onClose={() => setShowAssistantModal(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

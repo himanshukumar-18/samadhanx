@@ -2,6 +2,7 @@ import React from 'react';
 import { AIInsight } from '../../../types/problem';
 import { Sparkles, Users, Cpu, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
+import { AIBadge } from '../../../components/ai/AIBadge';
 
 export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> = ({ insight, problemId }) => {
   const { user } = useAuthStore();
@@ -12,10 +13,10 @@ export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-black text-primary">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span>AI Problem Match & Skill Breakdown</span>
+          <span>AI Problem Match & Skill Breakdown</span> <AIBadge />
         </div>
         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">
-          {(insight.confidenceScore * 100).toFixed(0)}% Match
+          AI suggestion
         </span>
       </div>
 
@@ -44,7 +45,7 @@ export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> 
       {!isCitizenRole ? (
         <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
           <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
-            <Users className="w-3.5 h-3.5 text-primary" /> {insight.matchedPeopleCount} innovators match this challenge
+            <Users className="w-3.5 h-3.5 text-primary" /> Human review recommended
           </span>
           <a
             href={`/problems/${problemId}`}
@@ -56,7 +57,7 @@ export const AIInsightCard: React.FC<{ insight: AIInsight; problemId: string }> 
       ) : (
         <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
           <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
-            <Users className="w-3.5 h-3.5 text-primary" /> {insight.matchedPeopleCount} solution pods matching
+            <Users className="w-3.5 h-3.5 text-primary" /> Suggested for human review
           </span>
           <a
             href={`/problems/${problemId}`}

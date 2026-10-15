@@ -7,7 +7,9 @@ export type ProblemStatus =
   | 'in_progress'
   | 'prototype'
   | 'pilot'
-  | 'solved';
+  | 'solved'
+  | 'duplicate';
+
 
 export type ImpactLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -35,8 +37,8 @@ export interface AIInsight {
   similarityCount: number;
   similarProblemIds: string[];
   requiredSkills: string[];
-  matchedPeopleCount: number;
-  confidenceScore: number;
+  matchedPeopleCount?: number | null;
+  confidenceScore?: number | null;
   summary: string;
 }
 
@@ -60,6 +62,8 @@ export interface Problem {
   location: string;
   district: string;
   state: string;
+  latitude?: number | null;
+  longitude?: number | null;
   author: ProblemAuthor;
   createdAt: string;
   images?: string[];

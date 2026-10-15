@@ -16,7 +16,9 @@ export const ProblemStatusBadge: React.FC<{ status: ProblemStatus }> = ({ status
     prototype: { label: { en: 'Prototype Ready', hi: 'प्रोटोटाइप तैयार' }, style: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20', icon: <Rocket className="w-3 h-3" /> },
     pilot: { label: { en: 'Live Field Pilot', hi: 'फील्ड पायलट' }, style: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', icon: <Rocket className="w-3 h-3" /> },
     solved: { label: { en: 'Solved & Deployed', hi: 'हल किया गया' }, style: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" /> },
+    duplicate: { label: { en: 'Merged Duplicate', hi: 'समान समस्या में शामिल' }, style: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', icon: <CheckCircle2 className="w-3 h-3" /> },
   };
+
 
   const item = configs[status] || configs.reported;
 

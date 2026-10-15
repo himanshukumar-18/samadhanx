@@ -46,6 +46,10 @@ export interface ImpactReportPayload {
 }
 
 export const studentApi = {
+  getRecommendedProblems: async (params?: { limit?: number; category?: string; district?: string }) => {
+    const res = await apiClient.get<{ success: boolean; data: { reason: string; hint?: string; items: Array<{ problem_id: string; title: string; category: string; district: string; match_label: string; matched_skills: string[]; reason: string }> } }>('/student/recommended-problems', { params });
+    return res.data.data;
+  },
   getStudentProfile: async (): Promise<StudentProfileData> => {
     const res = await apiClient.get('/student/profile');
     return res.data;

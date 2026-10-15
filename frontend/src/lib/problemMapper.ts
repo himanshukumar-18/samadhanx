@@ -8,6 +8,8 @@ export const mapApiProblem = (p: any): Problem => ({
   state: p.state,
   district: p.district,
   location: p.location,
+  latitude: p.latitude ?? null,
+  longitude: p.longitude ?? null,
   impactLevel: p.impact_level,
   status: p.status,
   author: {
@@ -30,5 +32,5 @@ export const mapApiProblem = (p: any): Problem => ({
   createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
   isLiked: p.is_liked,
   isSaved: p.is_saved,
-  aiInsight: p.ai_insight,
+  aiInsight: p.ai_insight?.status === 'QUEUED' || p.ai_insight?.confidenceScore == null ? undefined : p.ai_insight,
 });

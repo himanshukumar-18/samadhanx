@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     AI_ENABLED: bool = True
     AI_MODERATION_ENABLED: bool = True
+    AI_DUPLICATES_ENABLED: bool = True
+    AI_MATCHING_ENABLED: bool = True
+    AI_IMPACT_ENABLED: bool = True
+    AI_FACULTY_ENABLED: bool = True
+    AI_ASSISTANT_ENABLED: bool = True
     AI_PROVIDER: str = "groq"  # options: "groq", "openai"
     AI_MODEL: str = "llama-3.3-70b-versatile"
     AI_BASE_URL: str = "https://api.groq.com/openai/v1"
@@ -80,6 +85,18 @@ class Settings(BaseSettings):
     AI_PROMPT_VERSION: str = "v1"
     AI_CACHE_MODE: str = "read_through"  # options: "disabled", "read_through", "refresh"
     AI_DEBUG: bool = True
+
+    # Duplicate Problem Detection Settings
+    EMBEDDING_MODEL: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    EMBEDDING_DIM: int = 384
+    DUPLICATE_HIGH_THRESHOLD: float = 0.90
+    DUPLICATE_LOW_THRESHOLD: float = 0.75
+    DUPLICATE_DETECTION_ENABLED: bool = True
+    DUPLICATE_PRECHECK_TIMEOUT_SECONDS: int = 5
+    AI_EMBEDDING_BATCH_SIZE: int = 32
+    AI_DAILY_BUDGET_PER_USER: int = 100
+    AI_DAILY_BUDGET_PER_FEATURE: int = 10000
+
 
     @property
     def effective_ai_api_key(self) -> str | None:

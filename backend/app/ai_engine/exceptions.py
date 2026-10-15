@@ -33,6 +33,10 @@ class AITimeoutError(AIProviderError):
         self.code = "AI_TIMEOUT"
 
 
+class AITimeout(AITimeoutError):
+    pass
+
+
 class AIRateLimitError(AIProviderError):
     """Raised when the LLM provider returns a rate limit (HTTP 429)."""
 
@@ -54,6 +58,18 @@ class AIMalformedOutputError(AIValidationError):
     def __init__(self, message: str = "Model returned malformed or unparseable output", details: dict | None = None):
         super().__init__(message, details=details)
         self.code = "AI_MALFORMED_OUTPUT"
+
+
+class AIInvalidOutput(AIMalformedOutputError):
+    def __init__(self, message: str = "AI returned invalid structured output", details: dict | None = None):
+        super().__init__(message, details=details)
+        self.code = "AI_INVALID_OUTPUT"
+
+
+class AIFailed(AIProviderError):
+    def __init__(self, message: str = "AI service failed", details: dict | None = None):
+        super().__init__(message, details=details)
+        self.code = "AI_FAILED"
 
 
 class AIInputTooLargeError(AIValidationError):

@@ -105,6 +105,20 @@ export const ProblemTimeline: React.FC<ProblemTimelineProps> = ({ problemId, ini
         </div>
       </div>
 
+      {/* Merged Duplicate Notice */}
+      {data.problem_status === 'duplicate' && (
+        <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs space-y-1">
+          <div className="flex items-center gap-2 font-bold text-purple-700 dark:text-purple-300">
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span>Merged with Existing Canonical Report</span>
+          </div>
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            This issue was identified as a duplicate of an existing community submission. All citizen endorsements and progress updates have been linked with the canonical problem.
+          </p>
+        </div>
+      )}
+
+
       {/* Active Pod Highlight Card */}
       {data.current_pod && (
         <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-primary/5 via-primary/10 to-transparent border border-primary/20 space-y-3.5">

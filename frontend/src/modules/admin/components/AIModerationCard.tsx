@@ -14,11 +14,19 @@ import {
   ExternalLink,
   Check,
   ChevronDown,
+  GitMerge,
+  XCircle,
+  Eye,
+  ArrowRightLeft,
 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AIAnalysisData } from '../../../api/admin';
+import { duplicatesApi, DuplicateLinkResponse } from '../../../api/duplicates';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { Badge } from '../../../shared/components/ui/Badge';
 import { Button } from '../../../shared/components/ui/Button';
+import toast from 'react-hot-toast';
+
 
 interface AIModerationCardProps {
   problemId: string;
@@ -70,12 +78,83 @@ export const AIModerationCard: React.FC<AIModerationCardProps> = ({
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [acceptedCategory, setAcceptedCategory] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+  const [isRunningDupCheck, setIsRunningDupCheck] = useState(false);
+  const [mergingCandidateId, setMergingCandidateId] = useState<string | null>(null);
+  const [dismissingLinkId, setDismissingLinkId] = useState<string | null>(null);
+  const [compareCandidate, setCompareCandidate] = useState<DuplicateLinkResponse | null>(null);
+
+  const { data: duplicateLinks = [] } = useQuery({
+    queryKey: ['admin-duplicates', problemId],
+    queryFn: () => duplicatesApi.getProblemDuplicates(problemId),
+    enabled: Boolean(problemId),
+  });
+
+  // When there are no saved links, show the nearest candidates (scored but below threshold)
+  // by running a lightweight detection in "preview" mode via the same endpoint.
+  const { data: nearbyPreview = [] } = useQuery({
+    queryKey: ['admin-duplicates-preview', problemId],
+    queryFn: () => duplicatesApi.runDuplicateDetection(problemId),
+    // Only fetch preview when there are no saved links AND we're not actively scanning
+    enabled: Boolean(problemId) && duplicateLinks.length === 0 && !isRunningDupCheck,
+    staleTime: 5 * 60 * 1000, // 5 min
+    retry: false,
+  });
+
+
+  const handleRunDuplicateCheck = async () => {
+    try {
+      setIsRunningDupCheck(true);
+      const res = await duplicatesApi.runDuplicateDetection(problemId);
+      queryClient.setQueryData(['admin-duplicates', problemId], res);
+      toast.success(`Duplicate detection completed. Found ${res.length} matches.`);
+    } catch {
+      toast.error('Failed to run duplicate detection.');
+    } finally {
+      setIsRunningDupCheck(false);
+    }
+  };
+
+  const handleMergeProblem = async (targetProblemId: string) => {
+    if (!window.confirm('Are you sure you want to merge this problem into the selected canonical report? This action moves all endorsements and marks this report as duplicate.')) {
+      return;
+    }
+    try {
+      setMergingCandidateId(targetProblemId);
+      const res = await duplicatesApi.mergeProblems(problemId, targetProblemId);
+      toast.success(res.message || 'Problem merged successfully!');
+      queryClient.invalidateQueries({ queryKey: ['admin-duplicates', problemId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-problems-moderation'] });
+      setCompareCandidate(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail?.message || 'Failed to merge problem.';
+      toast.error(msg);
+    } finally {
+      setMergingCandidateId(null);
+    }
+  };
+
+  const handleDismissLink = async (linkId: string) => {
+    try {
+      setDismissingLinkId(linkId);
+      await duplicatesApi.dismissDuplicateLink(problemId, linkId);
+      toast.success('Dismissed link as not a duplicate.');
+      queryClient.invalidateQueries({ queryKey: ['admin-duplicates', problemId] });
+      setCompareCandidate(null);
+    } catch {
+      toast.error('Failed to dismiss duplicate link.');
+    } finally {
+      setDismissingLinkId(null);
+    }
+  };
+
   const handleAcceptCategory = (category: string) => {
     setAcceptedCategory(category);
     if (onCategoryAccepted) {
       onCategoryAccepted(category);
     }
   };
+
 
   // State 1: Initial loading (fetching cached record)
   if (isLoading) {
@@ -171,10 +250,7 @@ export const AIModerationCard: React.FC<AIModerationCardProps> = ({
   const hasRiskFlags = Boolean(analysis.risk_flags && analysis.risk_flags.length > 0);
   const suggestedCategory = analysis.category || 'Other';
   const isCategoryDifferent = currentCategory && currentCategory !== suggestedCategory;
-  const duplicateSignal = analysis.duplicate_signal;
-  const hasSimilarProblems = Boolean(
-    duplicateSignal?.potential_duplicate && duplicateSignal.similar_problem_ids?.length
-  );
+
 
   const getRecommendationBadge = (rec?: string | null) => {
     switch (rec) {
@@ -415,31 +491,304 @@ export const AIModerationCard: React.FC<AIModerationCardProps> = ({
         </div>
       )}
 
-      {/* Similar Problems Found Section (if duplicate signal present) */}
-      {hasSimilarProblems && (
-        <div className="p-2.5 rounded-xl bg-card border border-border/80 text-xs space-y-1.5">
-          <div className="flex items-center gap-1.5 text-primary font-bold text-[11px]">
-            <ExternalLink className="w-3 h-3" />
-            <span>Similar Problem(s) Detected ({Math.round((duplicateSignal?.similarity_score ?? 0) * 100)}% match):</span>
+      {/* Duplicates & Similar Reports Management Section */}
+      <div className="p-3 rounded-xl bg-card border border-border/80 text-xs space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-foreground font-bold text-xs">
+            <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+            <span>Duplicate & Similar Problems Detection</span>
+            {duplicateLinks.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 border border-border rounded text-muted-foreground font-bold">
+                {duplicateLinks.filter((l) => l.status === 'pending').length} pending
+              </span>
+            )}
+
           </div>
-          <div className="space-y-1 text-[11px] text-muted-foreground">
-            {duplicateSignal?.rationale && <p className="italic">{duplicateSignal.rationale}</p>}
-            <div className="flex flex-wrap gap-1.5">
-              {duplicateSignal?.similar_problem_ids.map((id) => (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 text-[11px] px-2 text-primary hover:bg-primary/10"
+            disabled={isRunningDupCheck}
+            onClick={handleRunDuplicateCheck}
+          >
+            {isRunningDupCheck ? (
+              <>
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Run Duplicate Check
+              </>
+            )}
+          </Button>
+        </div>
+
+        {duplicateLinks.length === 0 ? (
+          <div className="space-y-2">
+            {nearbyPreview.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground italic py-1">
+                No potential duplicate links recorded. Click <strong>Run Duplicate Check</strong> to scan.
+              </div>
+            ) : (
+              <>
+                <div className="text-[11px] text-muted-foreground font-semibold pb-1 border-b border-border/40">
+                  Closest candidates scored (none exceeded the duplicate threshold):
+                </div>
+                {nearbyPreview.slice(0, 3).map((link) => (
+                  <div
+                    key={link.id}
+                    className="p-2.5 rounded-lg border border-border/60 bg-muted/20 text-xs space-y-1 opacity-80"
+                  >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-foreground truncate max-w-[260px]">
+                        {link.candidate_title || `Problem #${link.candidate_problem_id.slice(0, 8)}`}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-muted text-muted-foreground">
+                        {Math.round(link.similarity * 100)}% match
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded uppercase text-[9px] font-extrabold ${
+                          link.verdict === 'strong_duplicate'
+                            ? 'bg-destructive/15 text-destructive'
+                            : link.verdict === 'possible_duplicate'
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                            : 'bg-blue-500/15 text-blue-500'
+                        }`}
+                      >
+                        {link.verdict.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span>📍 {link.candidate_district || 'N/A'}</span>
+                      <span>•</span>
+                      <span>🏷️ {link.candidate_category}</span>
+                    </div>
+                    {link.llm_reason && (
+                      <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-1.5 rounded">
+                        🤖 {link.llm_reason}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {duplicateLinks.map((link) => {
+              const isPending = link.status === 'pending';
+              const isConfirmed = link.status === 'confirmed';
+              const isDismissed = link.status === 'dismissed';
+
+              return (
+                <div
+                  key={link.id}
+                  className={`p-2.5 rounded-lg border text-xs space-y-1.5 transition-colors ${
+                    isConfirmed
+                      ? 'bg-purple-500/10 border-purple-500/30'
+                      : isDismissed
+                      ? 'bg-muted/30 border-border/40 opacity-60'
+                      : 'bg-background border-border/80 hover:border-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-foreground truncate max-w-[280px]">
+                          {link.candidate_title || `Problem #${link.candidate_problem_id.slice(0, 8)}`}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-primary/10 text-primary">
+                          {Math.round(link.similarity * 100)}% match
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded uppercase text-[9px] font-extrabold ${
+                            link.verdict === 'strong_duplicate'
+                              ? 'bg-destructive/15 text-destructive'
+                              : link.verdict === 'possible_duplicate'
+                              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                              : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                          }`}
+                        >
+                          {link.verdict.replace('_', ' ')}
+                        </span>
+                        {isConfirmed && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded border border-purple-400 text-purple-600 font-bold">
+                            Merged
+                          </span>
+                        )}
+                        {isDismissed && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded border border-border text-muted-foreground font-bold">
+                            Dismissed
+                          </span>
+                        )}
+                      </div>
+
+
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                        <span>📍 {link.candidate_district || 'District N/A'}</span>
+                        <span>•</span>
+                        <span>🏷️ {link.candidate_category}</span>
+                        <span>•</span>
+                        <span className="capitalize">Status: {link.candidate_status}</span>
+                      </div>
+
+                      {link.llm_reason && (
+                        <p className="text-[10px] text-muted-foreground italic mt-1 bg-muted/30 p-1.5 rounded">
+                          🤖 {link.llm_reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[11px] px-1.5"
+                        onClick={() => setCompareCandidate(link)}
+                        title="Compare Side by Side"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Compare
+                      </Button>
+
+                      {isPending && (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            className="h-6 text-[10px] px-2 bg-purple-600 hover:bg-purple-700 text-white"
+                            disabled={mergingCandidateId === link.candidate_problem_id}
+                            onClick={() => handleMergeProblem(link.candidate_problem_id)}
+                          >
+                            <GitMerge className="w-3 h-3 mr-1" />
+                            {mergingCandidateId === link.candidate_problem_id ? 'Merging...' : 'Merge'}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-[10px] px-1 text-muted-foreground hover:text-foreground"
+                            disabled={dismissingLinkId === link.id}
+                            onClick={() => handleDismissLink(link.id)}
+                            title="Not a duplicate"
+                          >
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Dismiss
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Side-by-Side Comparison Modal */}
+      {compareCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-sm text-foreground">Duplicate Problem Comparison</h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-primary/10 text-primary">
+                  {Math.round(compareCandidate.similarity * 100)}% Semantic Match
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompareCandidate(null)}
+                className="text-muted-foreground hover:text-foreground text-xs font-semibold px-2 py-1 rounded-lg hover:bg-muted"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Current Problem Under Review */}
+              <div className="p-3.5 rounded-xl bg-background border border-border space-y-2">
+                <div className="text-[10px] font-extrabold uppercase text-primary">Current Problem Under Moderation</div>
+                <div className="font-bold text-sm text-foreground">Problem #{problemId.slice(0, 8)}</div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div><strong className="text-foreground">Category:</strong> {currentCategory || 'N/A'}</div>
+                </div>
+              </div>
+
+              {/* Candidate Problem */}
+              <div className="p-3.5 rounded-xl bg-background border border-amber-500/30 space-y-2">
+                <div className="text-[10px] font-extrabold uppercase text-amber-600 dark:text-amber-400">Potential Duplicate Candidate</div>
+                <div className="font-bold text-sm text-foreground">{compareCandidate.candidate_title}</div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div><strong className="text-foreground">District:</strong> {compareCandidate.candidate_district}</div>
+                  <div><strong className="text-foreground">Category:</strong> {compareCandidate.candidate_category}</div>
+                  <div><strong className="text-foreground">Status:</strong> <span className="capitalize">{compareCandidate.candidate_status}</span></div>
+                </div>
                 <a
-                  key={id}
-                  href={`/problems/${id}`}
+                  href={`/problems/${compareCandidate.candidate_problem_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-2 py-0.5 rounded bg-muted hover:bg-muted/80 text-primary font-mono text-[10px] inline-flex items-center gap-1"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-semibold pt-1"
                 >
-                  {id.slice(0, 8)}... <ExternalLink className="w-2.5 h-2.5" />
+                  Open problem full view <ExternalLink className="w-3 h-3" />
                 </a>
-              ))}
+              </div>
+            </div>
+
+            {compareCandidate.llm_reason && (
+              <div className="p-3 bg-muted/40 rounded-xl text-xs space-y-1">
+                <span className="font-bold text-foreground">AI Deduplication Analysis:</span>
+                <p className="text-muted-foreground leading-relaxed">{compareCandidate.llm_reason}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCompareCandidate(null)}
+              >
+                Cancel
+              </Button>
+              {compareCandidate.status === 'pending' && (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10"
+                    disabled={dismissingLinkId === compareCandidate.id}
+                    onClick={() => handleDismissLink(compareCandidate.id)}
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                    Not a Duplicate
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={mergingCandidateId === compareCandidate.candidate_problem_id}
+                    onClick={() => handleMergeProblem(compareCandidate.candidate_problem_id)}
+                  >
+                    <GitMerge className="w-3.5 h-3.5 mr-1" />
+                    Merge Into Candidate
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
+
 
       {/* Recommendation & Reason Banner */}
       <div className="p-2.5 rounded-xl bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
