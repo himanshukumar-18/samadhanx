@@ -45,9 +45,39 @@ export interface ImpactReportPayload {
   proof_image_urls?: string[];
 }
 
+export interface ProblemRecommendationItem {
+  id: string;
+  problem_id: string;
+  title: string;
+  description: string;
+  category: string;
+  location?: string | null;
+  district: string;
+  state?: string | null;
+  status: string;
+  match_level: 'strong' | 'good' | 'fair' | 'general' | string;
+  match_label: string;
+  matched_skills: string[];
+  reason: string;
+  similarity_score?: number | null;
+  recommendation_score?: number | null;
+  created_at?: string | null;
+}
+
+export interface StudentRecommendationsData {
+  is_fallback: boolean;
+  hint?: string | null;
+  recommendations: ProblemRecommendationItem[];
+  items: ProblemRecommendationItem[];
+}
+
 export const studentApi = {
+  getRecommendations: async (params?: { limit?: number; category?: string; district?: string }) => {
+    const res = await apiClient.get<{ success: boolean; data: StudentRecommendationsData }>('/student/recommendations', { params });
+    return res.data.data;
+  },
   getRecommendedProblems: async (params?: { limit?: number; category?: string; district?: string }) => {
-    const res = await apiClient.get<{ success: boolean; data: { reason: string; hint?: string; items: Array<{ problem_id: string; title: string; category: string; district: string; match_label: string; matched_skills: string[]; reason: string }> } }>('/student/recommended-problems', { params });
+    const res = await apiClient.get<{ success: boolean; data: StudentRecommendationsData }>('/student/recommendations', { params });
     return res.data.data;
   },
   getStudentProfile: async (): Promise<StudentProfileData> => {

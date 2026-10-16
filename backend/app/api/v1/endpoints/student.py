@@ -29,74 +29,35 @@ from app.schemas.student import (
 from app.services.project_service import ProjectService
 from app.ai_engine.services.embedder import EmbedderService
 
+from app.schemas.recommendation import StudentRecommendationsResponse
+from app.services.recommendation_service import (
+    StudentRecommendationService,
+    invalidate_student_recommendations_cache,
+)
+
 router = APIRouter(prefix="/student", tags=["Student Workspace"])
 
 
-@router.get("/recommended-problems", response_model=dict)
-async def recommended_problems(
-    limit: int = Query(10, ge=1, le=30),
-    category: str | None = Query(None, max_length=100),
-    district: str | None = Query(None, max_length=100),
+@router.get("/recommendations", response_model=StudentRecommendationsResponse)
+@router.get("/recommended-problems", response_model=StudentRecommendationsResponse)
+async def get_student_recommendations(
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations to return"),
+    category: str | None = Query(None, max_length=100, description="Filter by problem category"),
+    district: str | None = Query(None, max_length=100, description="Filter by district"),
     current_user: User = Depends(require_role([UserRole.STUDENT])),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return deterministic, privacy-safe recommendations for the current student."""
-    from app.core.config import settings
-    if not getattr(settings, "AI_MATCHING_ENABLED", True):
-        return {"success": True, "data": {"reason": "disabled", "items": []}}
-    profile = current_user.student_profile
-    skills = {str(s).strip().lower() for s in (profile.skills or []) if str(s).strip()} if profile else set()
-    solved_problem_ids = set(
-        (await db.execute(select(SolutionProject.problem_id).where(SolutionProject.lead_student_id == current_user.id))).scalars().all()
+    """
+    Return personalized civic problem recommendations for the current student
+    using PostgreSQL pgvector semantic matching, structured skill overlap, and business status filters.
+    """
+    service = StudentRecommendationService(db)
+    return await service.get_recommendations(
+        student_user=current_user,
+        limit=limit,
+        category=category,
+        district=district,
     )
-    query = select(Problem).where(Problem.status == ProblemStatus.VERIFIED)
-    if category:
-        query = query.where(Problem.category.ilike(category.strip()))
-    if district:
-        query = query.where(Problem.district.ilike(district.strip()))
-    problems = list((await db.execute(query.order_by(desc(Problem.created_at)).limit(30))).scalars().all())
-    if not skills:
-        fallback = [p for p in problems if p.id not in solved_problem_ids][:limit]
-        return {"success": True, "data": {"reason": "complete_profile", "hint": "Add skills to get better matches.", "items": [_recommendation_item(p, [], "fair") for p in fallback]}}
-
-    profile_text = " ".join(sorted(skills))
-    profile_vec = None
-    try:
-        profile_vec = EmbedderService.get_embedding(profile_text)
-    except Exception:
-        pass
-    ranked = []
-    for problem in problems:
-        if problem.id in solved_problem_ids:
-            continue
-        haystack = f"{problem.title} {problem.description} {problem.category}".lower()
-        overlap = sorted({skill for skill in skills if skill in haystack})
-        vector_score = 0.0
-        if profile_vec and problem.embedding:
-            vector_score = sum(a * b for a, b in zip(profile_vec, problem.embedding, strict=False))
-        score = len(overlap) * 0.25 + vector_score * 0.65
-        if profile and profile.university and problem.district.lower() == profile.university.district.lower():
-            score += 0.1
-        ranked.append((score, problem, overlap))
-    ranked.sort(key=lambda row: (row[0], row[1].created_at), reverse=True)
-    items = []
-    for score, problem, overlap in ranked[:limit]:
-        label = "strong" if score >= 0.65 else "good" if score >= 0.35 else "fair"
-        items.append(_recommendation_item(problem, overlap, label))
-    return {"success": True, "data": {"reason": "matched", "items": items}}
-
-
-def _recommendation_item(problem: Problem, matched_skills: list[str], match_label: str) -> dict:
-    return {
-        "problem_id": str(problem.id),
-        "title": problem.title,
-        "category": problem.category,
-        "district": problem.district,
-        "status": problem.status.value if hasattr(problem.status, "value") else str(problem.status),
-        "match_label": match_label,
-        "matched_skills": matched_skills[:8],
-        "reason": "Matches your skills" if matched_skills else "Complete your profile to improve matches",
-    }
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -204,7 +165,9 @@ async def pick_project(
     set by a Faculty member through the adopt endpoint.
     """
     service = ProjectService(db)
-    return await service.pick_project(lead_student=current_user, data=data)
+    res = await service.pick_project(lead_student=current_user, data=data)
+    await invalidate_student_recommendations_cache(current_user.id)
+    return res
 
 
 # ---------------------------------------------------------------------------
@@ -805,5 +768,6 @@ async def update_student_profile(
     )
     db.add(audit)
     await db.commit()
+    await invalidate_student_recommendations_cache(current_user.id)
 
     return await get_student_profile(current_user=current_user, db=db)

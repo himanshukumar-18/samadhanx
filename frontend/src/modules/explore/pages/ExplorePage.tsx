@@ -7,6 +7,7 @@ import { FeedSkeleton } from '../../../shared/components/ui/FeedSkeleton';
 import { Search, Sparkles, Inbox, Wrench, Rocket, ShieldCheck, Layers } from 'lucide-react';
 import { problemsApi } from '../../../api/problems';
 import { mapApiProblem } from '../../../lib/problemMapper';
+import { RecommendedProblemsSection } from '../../student/components/RecommendedProblemsSection';
 
 export const ExplorePage: React.FC = () => {
   const { user } = useAuthStore();
@@ -116,6 +117,13 @@ export const ExplorePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* For student innovators, show AI Recommended Problems prominently */}
+      {user?.role === 'student' && !query && selectedSector === 'All' && selectedStatus === 'All' && (
+        <div className="p-4 sm:p-5 bg-card rounded-2xl border border-border">
+          <RecommendedProblemsSection limit={3} />
+        </div>
+      )}
 
       <div className="space-y-4 w-full">
         {isLoading ? (

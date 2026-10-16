@@ -7,6 +7,8 @@ from app.models.chat import ChatMessage
 from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.funded_project_comment import FundedProjectComment
 from app.models.impact_report import ImpactReport
+from app.models.admin_impact_report import AdminAIImpactReport
+
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
 from app.models.institution_request import InstitutionVerificationRequest
@@ -80,7 +82,9 @@ __all__ = [
     "IndustrySupport",
     "FundedProjectComment",
     "ImpactReport",
+    "AdminAIImpactReport",
     "PatentIP",
+
     "ChatMessage",
     "AccountSettings",
     "UserProfileDetail",

@@ -22,6 +22,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { facultyApi, FacultyPodItem } from '../../../api/faculty';
+import { AIReviewAssistantModal } from '../components/AIReviewAssistantModal';
 import toast from 'react-hot-toast';
 
 export const FacultyDashboard: React.FC = () => {
@@ -33,12 +34,14 @@ export const FacultyDashboard: React.FC = () => {
 
   // Review modal state
   const [reviewModalProject, setReviewModalProject] = useState<{ id: string; title: string; team_name: string } | null>(null);
+  const [aiAssistantProject, setAiAssistantProject] = useState<{ id: string; title: string; team_name: string } | null>(null);
   const [decision, setDecision] = useState<'approved' | 'changes_requested' | 'rejected'>('approved');
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   // Adoption state
   const [adoptingId, setAdoptingId] = useState<string | null>(null);
+
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['faculty-dashboard'],
@@ -67,7 +70,19 @@ export const FacultyDashboard: React.FC = () => {
     }
   };
 
+  const handleApplyAIFeedback = (suggestedText: string, suggestedDecision?: 'approved' | 'changes_requested' | 'rejected') => {
+    if (aiAssistantProject) {
+      setReviewModalProject(aiAssistantProject);
+    }
+    setFeedbackText((prev) => (prev.trim() ? `${prev}\n\n${suggestedText}` : suggestedText));
+    if (suggestedDecision) {
+      setDecision(suggestedDecision);
+    }
+    setAiAssistantProject(null);
+  };
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     if (!reviewModalProject) return;
 
@@ -330,21 +345,32 @@ export const FacultyDashboard: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
+                    <div className="pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2">
                       <a
                         href={`/projects/${proj.id}`}
                         className="text-xs text-primary hover:underline font-bold inline-flex items-center gap-1"
                       >
                         <FolderGit2 className="w-3.5 h-3.5" /> Workspace
                       </a>
-                      <Button
-                        size="sm"
-                        variant={isNeedsReview ? 'primary' : 'outline'}
-                        onClick={() => setReviewModalProject({ id: proj.id, title: proj.title, team_name: proj.team_name })}
-                        leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
-                      >
-                        {isNeedsReview ? 'Submit Review' : 'Add Guidance'}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAiAssistantProject({ id: proj.id, title: proj.title, team_name: proj.team_name })}
+                          leftIcon={<Sparkles className="w-3.5 h-3.5 text-primary" />}
+                          className="border-primary/30 hover:bg-primary/5 text-primary"
+                        >
+                          AI Review Assistant
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={isNeedsReview ? 'primary' : 'outline'}
+                          onClick={() => setReviewModalProject({ id: proj.id, title: proj.title, team_name: proj.team_name })}
+                          leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
+                        >
+                          {isNeedsReview ? 'Submit Review' : 'Add Guidance'}
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 );
@@ -505,6 +531,24 @@ export const FacultyDashboard: React.FC = () => {
             </CardHeader>
 
             <form onSubmit={handleReviewSubmit} className="p-6 pt-0 space-y-4">
+              {/* AI Review Assistant Quick Trigger */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <span>Need evidence-based review assistance?</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAiAssistantProject(reviewModalProject)}
+                  className="border-primary/30 hover:bg-primary/10 text-primary font-bold text-xs"
+                  leftIcon={<Sparkles className="w-3 h-3" />}
+                >
+                  AI Assistant
+                </Button>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                   Academic Evaluation Decision
@@ -571,6 +615,19 @@ export const FacultyDashboard: React.FC = () => {
           </Card>
         </div>
       )}
+
+      {/* AI Review Assistant Modal */}
+      {aiAssistantProject && (
+        <AIReviewAssistantModal
+          projectId={aiAssistantProject.id}
+          projectTitle={aiAssistantProject.title}
+          teamName={aiAssistantProject.team_name}
+          isOpen={!!aiAssistantProject}
+          onClose={() => setAiAssistantProject(null)}
+          onApplyFeedback={handleApplyAIFeedback}
+        />
+      )}
     </div>
   );
 };
+

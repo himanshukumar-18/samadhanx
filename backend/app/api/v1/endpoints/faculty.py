@@ -24,45 +24,48 @@ from app.schemas.faculty import (
 )
 from app.schemas.review import ReviewCreate, ReviewResponse
 from app.services.review_service import ReviewService
+from app.ai_engine.schemas.faculty_review import FacultyAIReviewResponse
+from app.ai_engine.services.faculty_review_service import FacultyAIReviewService
 
 router = APIRouter(prefix="/faculty", tags=["Faculty Mentorship"])
 
 
-@router.post("/pods/{pod_id}/ai-review-assist", response_model=dict)
-async def ai_review_assist(
-    pod_id: uuid.UUID,
-    current_user: Annotated[User, Depends(require_role([UserRole.FACULTY]))],
+
+@router.post("/projects/{project_id}/ai-review", response_model=FacultyAIReviewResponse)
+async def generate_project_ai_review(
+    project_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role([UserRole.FACULTY, UserRole.UNIVERSITY, UserRole.ADMIN]))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Generate an editable, non-decision review draft from the faculty's own pod queue."""
+    """Generate an evidence-based, AI-assisted review draft for a student solution pod."""
     from app.core.config import settings
     if not getattr(settings, "AI_FACULTY_ENABLED", True):
-        raise HTTPException(status_code=503, detail={"code": "AI_DISABLED", "message": "Faculty AI assistance is disabled."})
-    faculty = (await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == current_user.id))).scalar_one_or_none()
-    project = (await db.execute(
-        select(SolutionProject).options(
-            selectinload(SolutionProject.problem),
-            selectinload(SolutionProject.updates),
-            selectinload(SolutionProject.members).selectinload(ProjectMember.user),
-        ).where(SolutionProject.id == pod_id)
-    )).scalar_one_or_none()
-    if not faculty or not project or project.faculty_mentor_id != current_user.id or project.university_id != faculty.university_id or project.status != ProjectStatus.REVIEW:
-        raise HTTPException(status_code=403, detail={"code": "FACULTY_REVIEW_ACCESS_DENIED", "message": "This pod is not in your university review queue."})
-    updates = sorted(project.updates or [], key=lambda item: item.created_at)
-    last_update = updates[-1].created_at if updates else project.updated_at
-    days_since = max(0, (datetime.now(UTC) - (last_update.replace(tzinfo=UTC) if last_update.tzinfo is None else last_update)).days)
-    combined = " ".join(f"{u.title} {u.content}" for u in updates).lower()
-    gaps = []
-    if days_since > 14:
-        gaps.append("No recent engineering update was found.")
-    if "test" not in combined:
-        gaps.append("Testing evidence is not mentioned in the engineering logs.")
-    if "deploy" not in combined:
-        gaps.append("A deployment or rollout plan is not mentioned.")
-    summary = f"{project.title} has {len(updates)} engineering update(s) and is currently at {project.progress}% derived progress."
-    feedback = ["Clarify the next measurable milestone.", "Add evidence for testing and field validation."]
-    questions = ["What is the next milestone and how will success be measured?", "What risks could affect the rollout?"]
-    return {"success": True, "data": {"summary": summary, "gaps": gaps[:3], "suggested_feedback": feedback, "questions_for_team": questions, "ai_draft": True}}
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_DISABLED", "message": "Faculty AI assistance is disabled."},
+        )
+    service = FacultyAIReviewService(db)
+    review_output = await service.generate_review(project_id=project_id, current_user=current_user)
+    return FacultyAIReviewResponse(success=True, data=review_output)
+
+
+@router.post("/pods/{pod_id}/ai-review-assist", response_model=FacultyAIReviewResponse)
+async def ai_review_assist(
+    pod_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role([UserRole.FACULTY, UserRole.UNIVERSITY, UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Backward-compatible endpoint for faculty pod AI review assist."""
+    from app.core.config import settings
+    if not getattr(settings, "AI_FACULTY_ENABLED", True):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_DISABLED", "message": "Faculty AI assistance is disabled."},
+        )
+    service = FacultyAIReviewService(db)
+    review_output = await service.generate_review(project_id=pod_id, current_user=current_user)
+    return FacultyAIReviewResponse(success=True, data=review_output)
+
 
 
 @router.get("/dashboard", response_model=FacultyDashboardResponse)

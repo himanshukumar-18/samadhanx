@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import { podsApi } from '../../../api/pods';
 import { projectsApi } from '../../../api/projects';
-import { studentApi } from '../../../api/student';
 import { PodCard } from '../components/PodCard';
 import { PodCardSkeleton } from '../components/PodCardSkeleton';
+import { RecommendedProblemsSection } from '../components/RecommendedProblemsSection';
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -34,12 +34,6 @@ export const StudentDashboard: React.FC = () => {
     queryKey: ['my-problem-pods'],
     queryFn: () => podsApi.listMyPods(),
     staleTime: 30_000,
-  });
-
-  const { data: recommendations, isLoading: loadingRecommendations, isError: recommendationsError, refetch: retryRecommendations } = useQuery({
-    queryKey: ['student-recommended-problems'],
-    queryFn: () => studentApi.getRecommendedProblems({ limit: 6 }),
-    staleTime: 60_000,
   });
 
   // Derived metrics — all from real backend data
@@ -148,15 +142,8 @@ export const StudentDashboard: React.FC = () => {
         />
       </div>
 
-      <section aria-label="Recommended for you" className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-bold text-foreground">Recommended for You <span className="text-[10px] font-semibold text-primary">AI suggestion</span></h2>
-          {recommendations?.hint && <a className="text-xs text-primary hover:underline" href="/profile">Complete profile</a>}
-        </div>
-        {loadingRecommendations ? <div className="grid grid-cols-1 md:grid-cols-3 gap-3"><Skeleton className="h-32" /><Skeleton className="h-32" /><Skeleton className="h-32" /></div> : recommendationsError ? (
-          <div className="rounded-xl border border-destructive/30 p-4 text-sm">Could not load recommendations. <button className="text-primary font-bold" onClick={() => retryRecommendations()}>Retry</button></div>
-        ) : recommendations?.items?.length ? <div className="grid grid-cols-1 md:grid-cols-3 gap-3">{recommendations.items.map((item) => <div key={item.problem_id} className="rounded-2xl border border-border bg-card p-4 space-y-2"><div className="flex justify-between gap-2"><span className="text-[10px] uppercase font-bold text-primary">{item.match_label} match</span><span className="text-[10px] text-muted-foreground">{item.district}</span></div><h3 className="font-bold text-sm line-clamp-2">{item.title}</h3><div className="flex flex-wrap gap-1">{item.matched_skills.map((skill) => <span key={skill} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{skill}</span>)}</div><a href={`/problems/${item.problem_id}`} className="text-xs font-bold text-primary hover:underline">View problem →</a></div>)}</div> : <div className="rounded-xl border border-border p-4 text-sm text-muted-foreground">{recommendations?.hint || 'No recommendations yet.'}</div>}
-      </section>
+      {/* ── Problem-to-Skill Recommendations ── */}
+      <RecommendedProblemsSection limit={6} />
 
       {/* ── Recent Pods Section ── */}
       <section aria-label="Recent solution pods">

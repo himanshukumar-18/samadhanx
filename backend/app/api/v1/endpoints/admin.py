@@ -43,6 +43,12 @@ from app.schemas.problem import ProblemModerationUpdate, ProblemResponse
 from app.services.problem_service import ProblemService
 from app.api.v1.endpoints.public import invalidate_public_universities_cache
 from app.tasks.email import send_approval_email_task, send_rejection_email_task
+from app.ai_engine.schemas.impact_report import (
+    AdminImpactReportGenerateRequest,
+    AdminImpactReportResponseData,
+)
+from app.ai_engine.services.admin_impact_service import AdminAIImpactService
+
 
 
 
@@ -481,48 +487,54 @@ async def submit_ai_feedback(
     return StandardApiResponse(success=True, data={"recorded": True})
 
 
-@router.post("/ai/impact-report", response_model=StandardApiResponse[dict])
+@router.post("/ai/impact-report", response_model=StandardApiResponse[AdminImpactReportResponseData])
+@router.post("/impact-report/generate", response_model=StandardApiResponse[AdminImpactReportResponseData])
 async def generate_ai_impact_report(
-    body: AIImpactReportRequest,
+    body: AdminImpactReportGenerateRequest = AdminImpactReportGenerateRequest(),
     current_admin: User = Depends(require_role([UserRole.ADMIN])),
     db: AsyncSession = Depends(get_db),
-    _rl: None = Depends(rate_limiter(requests_per_minute=5, key_prefix="ai_impact")),
+    _rl: None = Depends(rate_limiter(requests_per_minute=10, key_prefix="ai_impact")),
 ):
-    """Create a number-verifiable deterministic report from aggregate stats."""
-    from datetime import timedelta
+    """Create a structured, number-verifiable AI impact report from real database statistics."""
     from app.core.config import settings as app_settings
     if not getattr(app_settings, "AI_IMPACT_ENABLED", True):
-        raise HTTPException(status_code=503, detail={"code": "AI_DISABLED", "message": "Impact AI is disabled."})
-    from app.models.project import SolutionProject
-    period_days = {"7d": 7, "30d": 30, "all": None}.get(body.period)
-    if body.period not in {"7d", "30d", "all"}:
-        raise HTTPException(status_code=422, detail={"code": "INVALID_REPORT_PERIOD", "message": "Period must be 7d, 30d, or all."})
-    cutoff = datetime.now(UTC) - timedelta(days=period_days) if period_days else None
-    problem_filter = []
-    if cutoff:
-        problem_filter.append(Problem.created_at >= cutoff)
-    if body.district:
-        problem_filter.append(Problem.district.ilike(body.district.strip()))
-    total = (await db.execute(select(func.count(Problem.id)).where(*problem_filter))).scalar() or 0
-    solved = (await db.execute(select(func.count(Problem.id)).where(Problem.status == ProblemStatus.SOLVED, *problem_filter))).scalar() or 0
-    verified = (await db.execute(select(func.count(Problem.id)).where(Problem.status == ProblemStatus.VERIFIED, *problem_filter))).scalar() or 0
-    pods = (await db.execute(select(func.count(SolutionProject.id)).where(*([SolutionProject.created_at >= cutoff] if cutoff else [])))).scalar() or 0
-    stats = {"problems_reported": total, "approved": verified, "solved": solved, "active_pods": pods, "period": body.period, "district": body.district}
-    narrative = {
-        "headline": f"SamadhanX recorded {total} problem reports in the selected period.",
-        "highlights": [f"{verified} problems are verified.", f"{solved} problems are solved.", f"{pods} solution pods are active."],
-        "risk": "Some reports still need verification." if total > verified else "Continue monitoring verification capacity.",
-        "suggestion": "Prioritize older unverified reports and maintain regular pod updates.",
-        "template": True,
-        "stats": stats,
-        "based_on": f"Based on {body.period} aggregate data" + (f" for {body.district}." if body.district else "."),
-    }
-    return StandardApiResponse(success=True, data=narrative, message="Template summary generated from aggregate platform data.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_DISABLED", "message": "Impact AI is disabled."},
+        )
+
+    service = AdminAIImpactService(db)
+    report, statistics = await service.generate_impact_report(
+        current_admin=current_admin,
+        period=body.period,
+        district=body.district,
+    )
+
+    data = AdminImpactReportResponseData(
+        report=report,
+        statistics=statistics,
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+    )
+    return StandardApiResponse(
+        success=True,
+        data=data,
+        message="AI Impact Report generated successfully from real platform metrics.",
+    )
 
 
 @router.get("/ai/impact-report/latest", response_model=StandardApiResponse[dict])
-async def latest_ai_impact_report(current_admin: User = Depends(require_role([UserRole.ADMIN]))):
-    return StandardApiResponse(success=True, data=None, message="No persisted impact report is available yet.")
+@router.get("/impact-report/latest", response_model=StandardApiResponse[dict])
+async def latest_ai_impact_report(
+    current_admin: User = Depends(require_role([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve the latest persisted AI impact report."""
+    service = AdminAIImpactService(db)
+    latest = await service.get_latest_report()
+    if not latest:
+        return StandardApiResponse(success=True, data=None, message="No persisted impact report is available yet.")
+    return StandardApiResponse(success=True, data=latest, message="Latest AI Impact Report retrieved successfully.")
+
 
 
 # 4c-POST. On-Demand AI Analysis Generation (synchronous, cached, timeout-guarded)

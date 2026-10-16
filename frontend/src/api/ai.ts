@@ -77,11 +77,77 @@ export const citizenAssistantApi = {
     (await apiClient.delete(`/citizen/ai-assistant/sessions/${sessionId}`)).data,
 };
 
+export type { FacultyAIReviewData } from './faculty';
+
 export const facultyAIReviewApi = {
-  assist: async (podId: string) => (await apiClient.post(`/faculty/pods/${podId}/ai-review-assist`)).data,
+  assist: async (projectId: string) => (await apiClient.post(`/faculty/projects/${projectId}/ai-review`)).data,
 };
 
+
+export interface AdminAIImpactReportData {
+  report: {
+    headline: string;
+    executive_summary: string;
+    key_achievements: string[];
+    problem_impact: string;
+    community_engagement: string;
+    student_impact: string;
+    collaboration_impact: string;
+    key_insights: string[];
+    areas_needing_attention: string[];
+    recommended_next_steps: string[];
+    is_data_limited?: boolean;
+  };
+  statistics: {
+    users: {
+      total: number;
+      citizens: number;
+      students: number;
+      faculty: number;
+      universities: number;
+      industry: number;
+      admins: number;
+      active_users: number;
+      verified_users: number;
+    };
+    problems: {
+      total: number;
+      approved: number;
+      pending: number;
+      rejected: number;
+      in_progress: number;
+      resolved: number;
+      status_breakdown: Record<string, number>;
+    };
+    projects: {
+      total: number;
+      active: number;
+      completed: number;
+      status_breakdown: Record<string, number>;
+    };
+    participation: {
+      students_engaged: number;
+      solutions_submitted: number;
+      updates_posted: number;
+    };
+    top_categories: Array<{ category: string; count: number }>;
+    top_locations: Array<{ location: string; count: number }>;
+    recent_activity: Array<{ action: string; target_type: string; timestamp: string }>;
+    period: string;
+    district?: string | null;
+    generated_at: string;
+  };
+  generated_at: string;
+}
+
 export const adminImpactApi = {
-  generate: async (period: '7d' | '30d' | 'all', district?: string) => (await apiClient.post('/admin/ai/impact-report', { period, district })).data,
-  latest: async () => (await apiClient.get('/admin/ai/impact-report/latest')).data,
+  generate: async (
+    period: '7d' | '30d' | 'all' = '30d',
+    district?: string
+  ): Promise<{ success: boolean; data: AdminAIImpactReportData; message: string }> =>
+    (await apiClient.post('/admin/ai/impact-report', { period, district: district?.trim() || undefined })).data,
+
+  latest: async (): Promise<{ success: boolean; data: AdminAIImpactReportData | null; message: string }> =>
+    (await apiClient.get('/admin/ai/impact-report/latest')).data,
 };
+

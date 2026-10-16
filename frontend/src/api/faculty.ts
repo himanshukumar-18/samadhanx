@@ -73,6 +73,18 @@ export interface FacultyDashboardData {
   }>;
 }
 
+export interface FacultyAIReviewData {
+  summary: string;
+  progress_percentage: number;
+  completed_work: string[];
+  pending_work: string[];
+  strengths: string[];
+  risks: string[];
+  suggested_feedback: string[];
+  next_steps: string[];
+  overall_assessment: 'on_track' | 'needs_attention' | 'behind' | 'insufficient_data';
+}
+
 export interface FacultyProfileData {
   id: string;
   user_id: string;
@@ -88,6 +100,7 @@ export interface FacultyProfileData {
   supervised_pods_count: number;
   approved_reviews_count: number;
 }
+
 
 export const facultyApi = {
   // Public Onboarding
@@ -184,4 +197,10 @@ export const facultyApi = {
     const res = await apiClient.get(`/faculty/projects/${projectId}/reviews`);
     return res.data;
   },
+
+  getAIReview: async (projectId: string): Promise<FacultyAIReviewData> => {
+    const res = await apiClient.post(`/faculty/projects/${projectId}/ai-review`);
+    return res.data?.data;
+  },
 };
+

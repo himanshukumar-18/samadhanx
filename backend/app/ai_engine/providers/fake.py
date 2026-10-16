@@ -20,6 +20,10 @@ from app.ai_engine.schemas.problem_assistant import (
     AssistantQuestionOutput,
     GeneratedProblemDraft,
 )
+from app.ai_engine.schemas.faculty_review import FacultyAIReviewOutput
+from app.ai_engine.schemas.impact_report import AdminImpactReportOutput
+
+
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -119,6 +123,100 @@ class FakeAIProvider(ModelProvider):
                 tags=["Roads", "Infrastructure", "Waterlogging", "Safety"],
             )
             return out, telemetry  # type: ignore
+
+        if schema == FacultyAIReviewOutput:
+            if "insufficient" in prompt.lower() or "empty" in prompt.lower():
+                out = FacultyAIReviewOutput(
+                    summary="Not enough project data is available for a reliable AI review.",
+                    progress_percentage=0,
+                    completed_work=[],
+                    pending_work=["Submit initial architecture specification", "Post milestone update"],
+                    strengths=[],
+                    risks=["Insufficient project documentation and zero submitted updates prevent evaluation."],
+                    suggested_feedback=["Please submit project details and updates for faculty review."],
+                    next_steps=["Post first milestone update"],
+                    overall_assessment="insufficient_data",
+                )
+                return out, telemetry  # type: ignore
+
+            out = FacultyAIReviewOutput(
+                summary="The student pod has established a strong initial architecture and submitted valid milestone updates matching the civic problem.",
+                progress_percentage=65,
+                completed_work=[
+                    "System architecture design completed and documented.",
+                    "Core algorithm and data pipeline prototype created.",
+                    "Initial repository and component structure established.",
+                ],
+                pending_work=[
+                    "Conduct extensive integration and stress testing.",
+                    "Perform on-ground user validation with affected community members.",
+                    "Complete deployment and monitoring documentation.",
+                ],
+                strengths=[
+                    "Clear problem-solution alignment with grassroots requirements.",
+                    "Consistent git repository commits and detailed update logs.",
+                ],
+                risks=[
+                    "Absence of field-testing results under low-bandwidth network conditions.",
+                    "Need for fallback error handling in user-facing client application.",
+                ],
+                suggested_feedback=[
+                    "Solid progress on core implementation. Focus on validating against realistic network constraints.",
+                    "Include unit test coverage metrics in the next milestone update.",
+                ],
+                next_steps=[
+                    "Run pilot test with sample community dataset.",
+                    "Submit testing logs and user feedback summary for next review.",
+                ],
+                overall_assessment="on_track",
+            )
+            return out, telemetry  # type: ignore
+
+        if schema == AdminImpactReportOutput:
+            if "baseline" in prompt.lower() or "insufficient" in prompt.lower() or "total problems reported: 0" in prompt.lower():
+                out = AdminImpactReportOutput(
+                    headline="SamadhanX Platform: Baseline Inception Phase",
+                    executive_summary="Currently, not enough platform activity is recorded in the database to generate a full impact report.",
+                    key_achievements=["Platform infrastructure and governance initialized."],
+                    problem_impact="Zero problems reported in this period.",
+                    community_engagement="Grassroots citizen outreach is required to drive initial civic problem reports.",
+                    student_impact="Student solution pods are ready for onboarding upon civic problem intake.",
+                    collaboration_impact="Institutional university and industry partnerships are in preparatory stage.",
+                    key_insights=["Baseline metrics establish platform operational readiness."],
+                    areas_needing_attention=["Drive citizen problem submission campaigns.", "Onboard campus innovation teams."],
+                    recommended_next_steps=["Launch regional awareness drives in target districts."],
+                    is_data_limited=True,
+                )
+                return out, telemetry  # type: ignore
+
+            out = AdminImpactReportOutput(
+                headline="SamadhanX National Governance & Civic Innovation Impact Report",
+                executive_summary="SamadhanX has achieved significant civic engagement across multiple districts, linking citizens, universities, and industry partners to drive tangible community solutions.",
+                key_achievements=[
+                    "Citizens reported civic problems across smart infrastructure, water, and sanitation.",
+                    "Student innovation pods actively developing verified technological prototypes.",
+                    "Demonstrated real-world problem resolution with interdisciplinary faculty mentorship.",
+                ],
+                problem_impact="The platform maintains high problem intake velocity with structured moderation and rapid problem validation.",
+                community_engagement="Civic engagement is expanding with active citizen reporters across urban and rural wards.",
+                student_impact="Student engineering teams have gained public interest technology experience building live prototypes.",
+                collaboration_impact="Cross-sector collaboration connects university faculty with corporate CSR sponsors.",
+                key_insights=[
+                    "Strong alignment between reported community pain points and student prototype development.",
+                    "Multi-tier mentorship accelerates prototype maturity and field deployment.",
+                ],
+                areas_needing_attention=[
+                    "Streamline review turnaround for pending problem submissions.",
+                    "Expand industry pilot sponsorships for field-ready prototypes.",
+                ],
+                recommended_next_steps=[
+                    "Launch targeted municipal innovation hackathons in high-problem wards.",
+                    "Establish fast-track verification channels for urgent civic hazards.",
+                ],
+                is_data_limited=False,
+            )
+            return out, telemetry  # type: ignore
+
 
         # 3. Dynamic content inspection heuristics for test assertions
         prompt_lower = prompt.lower()
