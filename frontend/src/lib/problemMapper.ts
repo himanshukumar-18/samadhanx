@@ -1,5 +1,19 @@
 import { Problem } from '../types/problem';
 
+const cleanAvatar = (url: any): string => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined' || trimmed === '[object Object]') return '';
+  return trimmed;
+};
+
+const cleanMediaUrls = (urls: any): string[] => {
+  if (!Array.isArray(urls)) return [];
+  return urls
+    .filter((u): u is string => typeof u === 'string' && u.trim() !== '' && u.trim() !== 'null' && u.trim() !== 'undefined')
+    .map((u) => u.trim());
+};
+
 export const mapApiProblem = (p: any): Problem => ({
   id: p.id,
   title: p.title,
@@ -16,11 +30,11 @@ export const mapApiProblem = (p: any): Problem => ({
     id: p.created_by_id || p.author?.id,
     name: p.author?.full_name || p.author?.email || 'Citizen Reporter',
     role: p.author?.role || 'citizen',
-    avatar: p.author?.avatar || p.author?.avatar_url || p.author_avatar || p.author?.profile_picture_url || '',
+    avatar: cleanAvatar(p.author?.avatar || p.author?.avatar_url || p.author_avatar || p.author?.profile_picture_url),
     location: `${p.district}, ${p.state}`,
     verified: p.is_verified,
   },
-  images: p.media_urls || [],
+  images: cleanMediaUrls(p.media_urls),
   tags: p.tags || [],
   likesCount: p.likes_count || 0,
   commentsCount: p.comments_count || 0,

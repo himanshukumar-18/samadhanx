@@ -15,6 +15,10 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
+  React.useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',
     sm: 'w-7 h-7 text-[10px]',
@@ -26,7 +30,16 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   const dimensions = sizeClasses[size] || sizeClasses.md;
   const initials = name ? name.trim().slice(0, 2).toUpperCase() : 'SX';
 
-  if (src && !imageError) {
+  const isValidSrc = Boolean(
+    src &&
+    typeof src === 'string' &&
+    src.trim() !== '' &&
+    src !== 'null' &&
+    src !== 'undefined' &&
+    src !== '[object Object]'
+  );
+
+  if (src && isValidSrc && !imageError) {
     return (
       <img
         src={src}

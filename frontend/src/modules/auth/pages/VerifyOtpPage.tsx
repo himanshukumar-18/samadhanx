@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient } from '../../../api/client';
 import { Button } from '../../../shared/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../../shared/components/ui/Card';
 import { Logo } from '../../../shared/components/Logo';

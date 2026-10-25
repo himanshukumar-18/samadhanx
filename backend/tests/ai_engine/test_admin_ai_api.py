@@ -133,8 +133,18 @@ async def test_admin_post_generate_problem_ai_analysis_cached_and_fresh(
 
     from unittest.mock import patch
     from app.ai_engine.providers.fake import FakeAIProvider
+    from app.ai_engine.config.settings import AISettings
 
-    with patch("app.ai_engine.providers.factory.get_model_provider", return_value=FakeAIProvider()):
+    fake_ai_settings = AISettings(provider="fake")
+
+    with (
+        patch("app.ai_engine.services.ai_orchestrator.get_ai_settings", return_value=fake_ai_settings),
+        patch("app.ai_engine.services.ai_orchestrator.get_model_provider", return_value=FakeAIProvider()),
+        patch("app.ai_engine.services.moderation_service.get_model_provider", return_value=FakeAIProvider()),
+        patch("app.ai_engine.services.duplicate_service.get_model_provider", return_value=FakeAIProvider()),
+        patch("app.ai_engine.graphs.duplicate_detection.get_model_provider", return_value=FakeAIProvider()),
+        patch("app.ai_engine.providers.factory.get_model_provider", return_value=FakeAIProvider()),
+    ):
         # 3. Trigger on-demand generation (POST)
         res_post = await async_client.post(
             f"/api/v1/admin/problems/{problem.id}/ai-analysis",

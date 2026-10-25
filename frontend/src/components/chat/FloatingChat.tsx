@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { MessageSquare, Send, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { chatApi, ChatMessageItem } from '../../api/chat';
+import { API_BASE_URL } from '../../api/client';
 import toast from 'react-hot-toast';
 
 export const FloatingChat: React.FC = () => {
@@ -40,8 +41,7 @@ export const FloatingChat: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 
-    const wsUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1')
-      .replace(/^http/, 'ws') + `/chat/ws/${user.id}`;
+    const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + `/chat/ws/${user.id}`;
 
     try {
       const socket = new WebSocket(wsUrl);

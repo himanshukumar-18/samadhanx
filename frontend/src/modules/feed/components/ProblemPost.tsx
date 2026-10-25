@@ -66,7 +66,11 @@ export const ProblemPost: React.FC<{ problem: Problem }> = ({ problem }) => {
     }
   };
 
-  const firstMedia = problem.images && problem.images.length > 0 ? problem.images[0] : null;
+  const rawMedia = problem.images && problem.images.length > 0 ? problem.images[0] : null;
+  const firstMedia =
+    rawMedia && typeof rawMedia === 'string' && rawMedia.trim() !== '' && rawMedia !== 'null' && rawMedia !== 'undefined'
+      ? rawMedia
+      : null;
   const isVideoMedia = Boolean(
     firstMedia && (firstMedia.match(/\.(mp4|webm|mov|mkv)($|\?)/i) || firstMedia.includes('/video/upload/') || firstMedia.startsWith('data:video/'))
   );

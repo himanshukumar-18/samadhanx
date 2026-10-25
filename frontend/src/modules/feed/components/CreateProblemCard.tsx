@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ProblemCategory } from '../../../types/problem';
 import { useAuthStore } from '../../../store/authStore';
 import { useLanguageStore } from '../../../store/languageStore';
@@ -17,7 +17,7 @@ import { useDuplicateCheck } from '../hooks/useDuplicateCheck';
 import toast from 'react-hot-toast';
 
 export const CreateProblemCard: React.FC<{ onCreated?: () => void }> = ({ onCreated }) => {
-
+  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
   const { language } = useLanguageStore();
   const t = (key: string) => getTranslation(language, key);
@@ -318,6 +318,11 @@ export const CreateProblemCard: React.FC<{ onCreated?: () => void }> = ({ onCrea
       });
 
       toast.success(language === 'hi' ? 'समस्या सफलतापूर्वक प्रकाशित की गई!' : 'Problem challenge published to community feed!');
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['my-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['citizen-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['citizen-problems'] });
       setTitle('');
       setDescription('');
       setMediaUrl(null);

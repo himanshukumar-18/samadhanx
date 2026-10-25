@@ -49,6 +49,8 @@ export const useUpdateCitizenProfile = () => {
     onSuccess: (updated) => {
       queryClient.setQueryData(['citizen', 'profile'], updated);
       queryClient.invalidateQueries({ queryKey: ['citizen', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
       toast.success('Profile saved successfully');
     },
     onError: (err: any) => {

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "https://samadhanx-two.vercel.app",
     ]
 
     # Database URLs
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
     EMAILS_FROM_EMAIL: str = "noreply@samadhanx.in"
     EMAILS_FROM_NAME: str = "SamadhanX Community Platform"
     EMAILS_ENABLED: bool = False
@@ -190,16 +192,26 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:
+        origins: list[str] = []
         if isinstance(v, str):
             if v.strip().startswith("[") and v.strip().endswith("]"):
                 try:
-                    return json.loads(v)
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        origins = [str(i).strip() for i in parsed if str(i).strip()]
                 except Exception:
                     pass
-            return [i.strip() for i in v.split(",") if i.strip()]
+            if not origins:
+                origins = [i.strip() for i in v.split(",") if i.strip()]
         elif isinstance(v, list):
-            return [str(i) for i in v]
-        return ["http://localhost:5173"]
+            origins = [str(i).strip() for i in v if str(i).strip()]
+        else:
+            origins = ["http://localhost:5173"]
+
+        prod_origin = "https://samadhanx-two.vercel.app"
+        if prod_origin not in origins:
+            origins.append(prod_origin)
+        return origins
 
     @property
     def async_database_url(self) -> str:

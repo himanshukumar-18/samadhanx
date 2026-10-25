@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
   Send,
@@ -58,6 +59,7 @@ export const SmartProblemAssistant: React.FC<SmartProblemAssistantProps> = ({
   onClose,
   districtHint,
 }) => {
+  const queryClient = useQueryClient();
   const { language } = useLanguageStore();
 
   // Assistant session state
@@ -499,6 +501,12 @@ export const SmartProblemAssistant: React.FC<SmartProblemAssistantProps> = ({
           ? 'आपकी समस्या सफलतापूर्वक प्रकाशित कर दी गई!'
           : 'Your problem report has been submitted successfully!'
       );
+
+      queryClient.invalidateQueries({ queryKey: ['problems'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['my-problems'] });
+      queryClient.invalidateQueries({ queryKey: ['citizen-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['citizen-problems'] });
 
       if (onSuccess) onSuccess();
       if (onClose) onClose();

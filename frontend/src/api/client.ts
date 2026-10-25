@@ -1,8 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE_URL = rawApiUrl.replace(/\/$/, '').endsWith('/api/v1')
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+export const API_BASE_URL = rawApiUrl.replace(/\/$/, '').endsWith('/api/v1')
   ? rawApiUrl.replace(/\/$/, '')
   : `${rawApiUrl.replace(/\/$/, '')}/api/v1`;
 
@@ -98,11 +98,15 @@ apiClient.interceptors.response.use(
           }
           processQueue(null, newAccessToken);
           return apiClient(originalRequest);
+        } else {
+          throw new Error('Refresh response missing access_token');
         }
       } catch (refreshErr) {
         processQueue(refreshErr as AxiosError, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

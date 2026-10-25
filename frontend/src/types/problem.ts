@@ -1,13 +1,16 @@
 export type ProblemStatus =
   | 'reported'
+  | 'submitted'
   | 'under_review'
   | 'verified'
   | 'discussion'
   | 'team_forming'
   | 'in_progress'
+  | 'solution_submitted'
   | 'prototype'
   | 'pilot'
   | 'solved'
+  | 'rejected'
   | 'duplicate';
 
 
