@@ -38,13 +38,13 @@ class Problem(BaseModel):
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     status: Mapped[ProblemStatus] = mapped_column(
-        SQLEnum(ProblemStatus, name="problem_status_enum"),
+        SQLEnum(ProblemStatus, name="problem_status_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=ProblemStatus.SUBMITTED,
         nullable=False,
         index=True,
     )
     impact_level: Mapped[ImpactLevel] = mapped_column(
-        SQLEnum(ImpactLevel, name="impact_level_enum"),
+        SQLEnum(ImpactLevel, name="impact_level_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=ImpactLevel.MEDIUM,
         nullable=False,
         index=True,

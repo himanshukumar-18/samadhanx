@@ -25,7 +25,10 @@ class User(BaseModel):
 
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole, name="user_role_enum"), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        SQLEnum(UserRole, name="user_role_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

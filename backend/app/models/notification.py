@@ -22,7 +22,7 @@ class Notification(BaseModel):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[NotificationType] = mapped_column(
-        SQLEnum(NotificationType, name="notification_type_enum"),
+        SQLEnum(NotificationType, name="notification_type_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=NotificationType.SYSTEM_ALERT,
         nullable=False,
     )

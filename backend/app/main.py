@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -40,6 +41,78 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from app.db.session import async_engine
         from app.models import Base
         async with async_engine.begin() as conn:
+            # 1. Idempotent Enum creation: Only create if they do not already exist in pg_type
+            await conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+                        CREATE TYPE user_role_enum AS ENUM ('citizen', 'student', 'faculty', 'industry', 'admin', 'university');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'problem_status_enum') THEN
+                        CREATE TYPE problem_status_enum AS ENUM ('submitted', 'under_review', 'verified', 'rejected', 'in_progress', 'solution_submitted', 'pilot', 'solved', 'duplicate');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'impact_level_enum') THEN
+                        CREATE TYPE impact_level_enum AS ENUM ('low', 'medium', 'high', 'critical');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_status_enum') THEN
+                        CREATE TYPE project_status_enum AS ENUM ('planning', 'in_progress', 'prototype', 'review', 'pilot', 'completed', 'rejected');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_decision_enum') THEN
+                        CREATE TYPE review_decision_enum AS ENUM ('pending', 'approved', 'rejected', 'changes_requested');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'support_type_enum') THEN
+                        CREATE TYPE support_type_enum AS ENUM ('sponsorship', 'mentorship', 'pilot_partner', 'bounty', 'csr_grant', 'equipment');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'industry_support_status_enum') THEN
+                        CREATE TYPE industry_support_status_enum AS ENUM ('pending', 'approved', 'rejected', 'withdrawn');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type_enum') THEN
+                        CREATE TYPE notification_type_enum AS ENUM (
+                            'problem_updated', 'project_assigned', 'review_feedback', 'industry_support', 'system_alert',
+                            'pod_created', 'pod_member_joined', 'pod_submitted_for_review', 'pod_review_feedback',
+                            'impact_report_submitted', 'funding_offer_response', 'industry_offer_made', 'funding_milestone_update'
+                        );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'otp_purpose_enum') THEN
+                        CREATE TYPE otp_purpose_enum AS ENUM ('registration', 'password_reset');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invitation_status_enum') THEN
+                        CREATE TYPE invitation_status_enum AS ENUM ('pending', 'accepted', 'revoked', 'expired');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'org_type_enum') THEN
+                        CREATE TYPE org_type_enum AS ENUM ('university', 'industry');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'request_status_enum') THEN
+                        CREATE TYPE request_status_enum AS ENUM ('pending', 'approved', 'rejected', 'withdrawn');
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_analysis_status_enum') THEN
+                        CREATE TYPE ai_analysis_status_enum AS ENUM (
+                            'not_started', 'queued', 'running', 'completed', 'failed', 'retrying', 'timeout',
+                            'NOT_STARTED', 'QUEUED', 'RUNNING', 'COMPLETED', 'FAILED', 'RETRYING', 'TIMEOUT'
+                        );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_moderation_recommendation_enum') THEN
+                        CREATE TYPE ai_moderation_recommendation_enum AS ENUM (
+                            'normal_review', 'spam_review', 'high_risk_escalation', 'human_review_required',
+                            'NORMAL_REVIEW', 'SPAM_REVIEW', 'HIGH_RISK_ESCALATION', 'HUMAN_REVIEW_REQUIRED'
+                        );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'duplicate_verdict_enum') THEN
+                        CREATE TYPE duplicate_verdict_enum AS ENUM (
+                            'strong_duplicate', 'possible_duplicate', 'related', 'unique',
+                            'STRONG_DUPLICATE', 'POSSIBLE_DUPLICATE', 'RELATED', 'UNIQUE'
+                        );
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'duplicate_link_status_enum') THEN
+                        CREATE TYPE duplicate_link_status_enum AS ENUM (
+                            'pending', 'confirmed', 'dismissed',
+                            'PENDING', 'CONFIRMED', 'DISMISSED'
+                        );
+                    END IF;
+                END $$;
+            """))
+
+            # 2. Synchronize SQLAlchemy model tables
             await conn.run_sync(Base.metadata.create_all)
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS headline VARCHAR(120);"))
             await conn.execute(text("ALTER TABLE citizen_profiles ADD COLUMN IF NOT EXISTS bio TEXT;"))
@@ -134,9 +207,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problem_saves_user_problem ON problem_saves (user_id, problem_id);"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_problem_shares_problem_id ON problem_shares (problem_id);"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread ON notifications (recipient_id, is_read, created_at DESC);"))
-        logger.info("Database tables, indexes, and schema columns verified and updated successfully.")
+        logger.info("Database initialization completed")
     except Exception as e:
-        logger.warning(f"Database auto-creation check note: {e}")
+        logger.warning(f"Database initialization warning: {e}")
+
+    # Verify Redis connection
+    try:
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        pong = await asyncio.wait_for(r.ping(), timeout=3.0)
+        await r.aclose()
+        if pong:
+            logger.info("Redis connection verified")
+    except Exception as e:
+        logger.warning(f"Redis connection warning during startup: {e}")
+
+    # Verify Celery configuration
+    try:
+        from app.celery_app import celery_app
+        if celery_app.conf.broker_url:
+            logger.info("Celery configuration loaded")
+    except Exception as e:
+        logger.warning(f"Celery configuration check warning: {e}")
+
+    logger.info("Application startup completed")
 
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")

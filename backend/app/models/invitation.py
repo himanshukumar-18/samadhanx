@@ -36,7 +36,7 @@ class FacultyInvitation(BaseModel):
     research_areas: Mapped[list | None] = mapped_column(JSON, default=list)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     status: Mapped[InvitationStatus] = mapped_column(
-        SQLEnum(InvitationStatus, name="invitation_status_enum"),
+        SQLEnum(InvitationStatus, name="invitation_status_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=InvitationStatus.PENDING,
         nullable=False,
         index=True,

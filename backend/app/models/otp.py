@@ -13,7 +13,11 @@ class OTPVerification(BaseModel):
 
     email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     otp_code: Mapped[str] = mapped_column(String(10), nullable=False)
-    purpose: Mapped[OTPPurpose] = mapped_column(SQLEnum(OTPPurpose, name="otp_purpose_enum"), default=OTPPurpose.REGISTRATION, nullable=False)
+    purpose: Mapped[OTPPurpose] = mapped_column(
+        SQLEnum(OTPPurpose, name="otp_purpose_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        default=OTPPurpose.REGISTRATION,
+        nullable=False,
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

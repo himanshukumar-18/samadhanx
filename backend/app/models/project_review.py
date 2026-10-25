@@ -24,7 +24,7 @@ class ProjectReview(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     decision: Mapped[ReviewDecision] = mapped_column(
-        SQLEnum(ReviewDecision, name="review_decision_enum"),
+        SQLEnum(ReviewDecision, name="review_decision_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=ReviewDecision.PENDING,
         nullable=False,
         index=True,

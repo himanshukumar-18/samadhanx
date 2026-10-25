@@ -17,12 +17,20 @@ class RestrictedAccountRequest(BaseModel):
     __tablename__ = "restricted_account_requests"
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    org_type: Mapped[OrgType] = mapped_column(SQLEnum(OrgType, name="org_type_enum"), nullable=False)
+    org_type: Mapped[OrgType] = mapped_column(
+        SQLEnum(OrgType, name="org_type_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     org_name: Mapped[str] = mapped_column(String(255), nullable=False)
     registration_identifier: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nodal_officer_name: Mapped[str] = mapped_column(String(255), nullable=False)
     official_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[RequestStatus] = mapped_column(SQLEnum(RequestStatus, name="request_status_enum"), default=RequestStatus.PENDING, nullable=False, index=True)
+    status: Mapped[RequestStatus] = mapped_column(
+        SQLEnum(RequestStatus, name="request_status_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
+        default=RequestStatus.PENDING,
+        nullable=False,
+        index=True,
+    )
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

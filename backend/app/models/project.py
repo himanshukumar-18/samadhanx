@@ -31,7 +31,7 @@ class SolutionProject(BaseModel):
     repository_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     status: Mapped[ProjectStatus] = mapped_column(
-        SQLEnum(ProjectStatus, name="project_status_enum"),
+        SQLEnum(ProjectStatus, name="project_status_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=ProjectStatus.PLANNING,
         nullable=False,
         index=True,

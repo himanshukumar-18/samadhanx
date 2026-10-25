@@ -1,9 +1,51 @@
 import json
 from typing import Any, Literal
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse, urlunparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _build_authenticated_redis_url(
+    raw_url: str | None,
+    host: str | None = None,
+    port: int | None = None,
+    password: str | None = None,
+    db: int | str = 0,
+    username: str | None = None,
+) -> str:
+    """Build or inject credentials into Redis URL.
+
+    Ensures that if password is provided, it is securely URL-encoded
+    and attached to the connection URL.
+    """
+    clean_db = str(db).lstrip("/") if db is not None else "0"
+    if raw_url and raw_url.strip():
+        url = raw_url.strip()
+        parsed = urlparse(url)
+        if parsed.scheme in ("redis", "rediss"):
+            if parsed.password:
+                return url
+            if password:
+                pwd = quote_plus(password)
+                user = quote_plus(username or parsed.username or "")
+                userinfo = f"{user}:{pwd}@" if user else f":{pwd}@"
+                hostname = parsed.hostname or host or "redis"
+                port_part = f":{parsed.port}" if parsed.port else (f":{port}" if port else "")
+                path = parsed.path if parsed.path and parsed.path != "/" else f"/{clean_db}"
+                new_netloc = f"{userinfo}{hostname}{port_part}"
+                return urlunparse(parsed._replace(netloc=new_netloc, path=path))
+            return url
+
+    target_host = host or "redis"
+    target_port = port or 6379
+    if password:
+        pwd = quote_plus(password)
+        user = quote_plus(username) if username else ""
+        userinfo = f"{user}:{pwd}@" if user else f":{pwd}@"
+        return f"redis://{userinfo}{target_host}:{target_port}/{clean_db}"
+
+    return f"redis://{target_host}:{target_port}/{clean_db}"
 
 
 class Settings(BaseSettings):
@@ -48,6 +90,7 @@ class Settings(BaseSettings):
     REDIS_PORT: int | None = None
     REDIS_PASSWORD: str | None = None
     REDIS_DB: int = 0
+    REDIS_USER: str | None = None
 
     # Celery Configuration
     CELERY_BROKER_URL: str | None = None
@@ -238,17 +281,33 @@ class Settings(BaseSettings):
             self.DATABASE_URL = f"postgresql+asyncpg://{user}:{pwd}@{host}:{port}/{db}"
             self.SYNC_DATABASE_URL = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
 
-        # Handle Redis credentials with special characters
-        if self.REDIS_PASSWORD:
-            pwd = quote_plus(self.REDIS_PASSWORD)
-            host = self.REDIS_HOST or "redis"
-            port = self.REDIS_PORT or 6379
-            db = self.REDIS_DB
-            self.REDIS_URL = f"redis://:{pwd}@{host}:{port}/{db}"
-            if not self.CELERY_BROKER_URL:
-                self.CELERY_BROKER_URL = self.REDIS_URL
-            if not self.CELERY_RESULT_BACKEND:
-                self.CELERY_RESULT_BACKEND = self.REDIS_URL
+        # Handle Redis & Celery credentials with special characters
+        self.REDIS_URL = _build_authenticated_redis_url(
+            raw_url=self.REDIS_URL,
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            password=self.REDIS_PASSWORD,
+            db=self.REDIS_DB,
+            username=self.REDIS_USER,
+        )
+
+        self.CELERY_BROKER_URL = _build_authenticated_redis_url(
+            raw_url=self.CELERY_BROKER_URL or self.REDIS_URL,
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            password=self.REDIS_PASSWORD,
+            db=self.REDIS_DB,
+            username=self.REDIS_USER,
+        )
+
+        self.CELERY_RESULT_BACKEND = _build_authenticated_redis_url(
+            raw_url=self.CELERY_RESULT_BACKEND or self.REDIS_URL,
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            password=self.REDIS_PASSWORD,
+            db=self.REDIS_DB,
+            username=self.REDIS_USER,
+        )
         return self
 
     @property
@@ -271,11 +330,25 @@ class Settings(BaseSettings):
 
     @property
     def celery_broker(self) -> str:
-        return self.CELERY_BROKER_URL or self.REDIS_URL
+        return _build_authenticated_redis_url(
+            raw_url=self.CELERY_BROKER_URL or self.REDIS_URL,
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            password=self.REDIS_PASSWORD,
+            db=self.REDIS_DB,
+            username=self.REDIS_USER,
+        )
 
     @property
     def celery_backend(self) -> str:
-        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+        return _build_authenticated_redis_url(
+            raw_url=self.CELERY_RESULT_BACKEND or self.REDIS_URL,
+            host=self.REDIS_HOST,
+            port=self.REDIS_PORT,
+            password=self.REDIS_PASSWORD,
+            db=self.REDIS_DB,
+            username=self.REDIS_USER,
+        )
 
     @field_validator("SECRET_KEY")
     @classmethod

@@ -28,7 +28,12 @@ class ProblemAIAnalysis(BaseModel):
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     status: Mapped[AIAnalysisStatus] = mapped_column(
-        SQLEnum(AIAnalysisStatus, name="ai_analysis_status_enum"),
+        SQLEnum(
+            AIAnalysisStatus,
+            name="ai_analysis_status_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
         default=AIAnalysisStatus.NOT_STARTED,
         nullable=False,
         index=True,
@@ -56,7 +61,12 @@ class ProblemAIAnalysis(BaseModel):
 
     # Decision Recommendation
     recommendation: Mapped[AIModerationRecommendation | None] = mapped_column(
-        SQLEnum(AIModerationRecommendation, name="ai_moderation_recommendation_enum"),
+        SQLEnum(
+            AIModerationRecommendation,
+            name="ai_moderation_recommendation_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
         nullable=True,
         index=True,
     )

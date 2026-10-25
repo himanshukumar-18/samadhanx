@@ -25,14 +25,14 @@ class IndustrySupport(BaseModel):
     )
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     support_type: Mapped[SupportType] = mapped_column(
-        SQLEnum(SupportType, name="support_type_enum"),
+        SQLEnum(SupportType, name="support_type_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=SupportType.SPONSORSHIP,
         nullable=False,
         index=True,
     )
     amount_or_terms: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[RequestStatus] = mapped_column(
-        SQLEnum(RequestStatus, name="industry_support_status_enum"),
+        SQLEnum(RequestStatus, name="industry_support_status_enum", create_type=False, values_callable=lambda x: [e.value for e in x]),
         default=RequestStatus.PENDING,
         nullable=False,
         index=True,

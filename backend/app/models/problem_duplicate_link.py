@@ -31,7 +31,12 @@ class ProblemDuplicateLink(BaseModel):
 
     similarity: Mapped[float] = mapped_column(Float, nullable=False)
     verdict: Mapped[DuplicateVerdict] = mapped_column(
-        SQLEnum(DuplicateVerdict, name="duplicate_verdict_enum"),
+        SQLEnum(
+            DuplicateVerdict,
+            name="duplicate_verdict_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
         default=DuplicateVerdict.POSSIBLE_DUPLICATE,
         nullable=False,
         index=True,
@@ -40,7 +45,12 @@ class ProblemDuplicateLink(BaseModel):
     llm_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[DuplicateLinkStatus] = mapped_column(
-        SQLEnum(DuplicateLinkStatus, name="duplicate_link_status_enum"),
+        SQLEnum(
+            DuplicateLinkStatus,
+            name="duplicate_link_status_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
         default=DuplicateLinkStatus.PENDING,
         nullable=False,
         index=True,
