@@ -17,6 +17,7 @@ import { podsApi } from '../../../api/pods';
 import { projectsApi } from '../../../api/projects';
 import { PodCard } from '../components/PodCard';
 import { PodCardSkeleton } from '../components/PodCardSkeleton';
+import { RecommendedProblemsSection } from '../components/RecommendedProblemsSection';
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -140,6 +141,9 @@ export const StudentDashboard: React.FC = () => {
           href="/teams"
         />
       </div>
+
+      {/* ── Problem-to-Skill Recommendations ── */}
+      <RecommendedProblemsSection limit={6} />
 
       {/* ── Recent Pods Section ── */}
       <section aria-label="Recent solution pods">

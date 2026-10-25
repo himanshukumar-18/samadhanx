@@ -33,12 +33,22 @@ def send_smtp_email(to_email: str, subject: str, html_content: str) -> bool:
         html_part = MIMEText(html_content, "html")
         msg.attach(html_part)
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
-            if settings.SMTP_TLS:
+        use_ssl = getattr(settings, "SMTP_SSL", False) or settings.SMTP_PORT == 465
+        smtp_cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+
+        logger.info(
+            f"[SMTP CONNECT] Host={settings.SMTP_HOST}:{settings.SMTP_PORT} "
+            f"SSL={use_ssl} TLS={settings.SMTP_TLS and not use_ssl} User={settings.SMTP_USER}"
+        )
+
+        with smtp_cls(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+            if not use_ssl and settings.SMTP_TLS:
                 server.starttls()
             if settings.SMTP_USER and settings.SMTP_PASSWORD:
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.EMAILS_FROM_EMAIL, [to_email], msg.as_string())
+            refused = server.sendmail(settings.EMAILS_FROM_EMAIL, [to_email], msg.as_string())
+            if refused:
+                raise RuntimeError(f"SMTP server refused recipient(s): {refused}")
 
         logger.info(f"[SMTP SUCCESS] Sent email '{subject}' to {to_email}")
         return True
@@ -69,7 +79,7 @@ def send_welcome_email_task(self, to_email: str, full_name: str, role: str):
         html_content = template.render(
             full_name=full_name,
             role=role,
-            login_url="http://localhost:5173/login",
+            login_url=f"{settings.FRONTEND_URL.rstrip('/')}/login",
         )
         subject = "Welcome to SamadhanX Community Innovation Platform"
 
@@ -88,7 +98,7 @@ def send_approval_email_task(self, to_email: str, org_name: str, org_type: str):
         html_content = template.render(
             org_name=org_name,
             org_type=org_type,
-            login_url="http://localhost:5173/login",
+            login_url=f"{settings.FRONTEND_URL.rstrip('/')}/login",
         )
         subject = f"Account Approved: Welcome {org_name} to SamadhanX"
 

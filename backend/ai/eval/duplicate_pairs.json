@@ -1,0 +1,513 @@
+[
+  {
+    "id": "pair_01",
+    "problem_a": {
+      "title": "Severe water leakage on MG Road near Metro Station",
+      "description": "Main pipeline burst near pillar 42 causing waterlogging and low pressure for residents.",
+      "district": "Bengaluru Urban",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Water pipe broken at MG road metro pillar 42",
+      "description": "Pani ka pipe toot gaya hai, metro pillar 42 ke paas pani bhar raha hai road pe.",
+      "district": "Bengaluru Urban",
+      "category": "Water Supply"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Hinglish duplicate of English report in same district"
+  },
+  {
+    "id": "pair_02",
+    "problem_a": {
+      "title": "Street lights not functioning in Sector 14 market",
+      "description": "All 12 street light poles in block C market have been dark for over two weeks, making it unsafe.",
+      "district": "Gurugram",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Dark street in Sector 14 C block market",
+      "description": "Streetlights are completely off in sec 14 c block near shops. Safety concern for women at night.",
+      "district": "Gurugram",
+      "category": "Electricity"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Paraphrased duplicate in same sector"
+  },
+  {
+    "id": "pair_03",
+    "problem_a": {
+      "title": "Open garbage dump near Govt Primary School",
+      "description": "Illegal municipal garbage dumping right outside the school gate attracting stray animals.",
+      "district": "Patna",
+      "category": "Sanitation"
+    },
+    "problem_b": {
+      "title": "School ke samne kachra feka ja raha hai",
+      "description": "Sarkari school ke gate ke paas kachre ka dher laga hua hai, badboo aur bimari ka khatra.",
+      "district": "Patna",
+      "category": "Sanitation"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Hindi duplicate of English school waste issue"
+  },
+  {
+    "id": "pair_04",
+    "problem_a": {
+      "title": "Large pothole causing traffic jam near flyover descent",
+      "description": "Deep crater on outer ring road right after the flyover ramp causing vehicle damage and traffic.",
+      "district": "Delhi",
+      "category": "Roads & Transport"
+    },
+    "problem_b": {
+      "title": "Deep pothole at outer ring road flyover exit",
+      "description": "Crater on the road after getting down from flyover. 2 bikes already slipped today.",
+      "district": "Delhi",
+      "category": "Roads & Transport"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Clear pothole duplicate in Delhi"
+  },
+  {
+    "id": "pair_05",
+    "problem_a": {
+      "title": "Sewage overflow in residential lane 4",
+      "description": "Drainage blocked completely, sewage water backing up into ground floor houses.",
+      "district": "Lucknow",
+      "category": "Drainage"
+    },
+    "problem_b": {
+      "title": "Lane 4 gutter chocked sewage leaking",
+      "description": "Gutter ka pani raste pe beh raha hai gali number 4 me. Ghar me badboo aa rahi hai.",
+      "district": "Lucknow",
+      "category": "Drainage"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Hinglish sewer duplicate"
+  },
+  {
+    "id": "pair_06",
+    "problem_a": {
+      "title": "Dangerous dangling high voltage wire on 5th Cross Road",
+      "description": "Loose live electric wire hanging barely 6 feet from the ground near children play area.",
+      "district": "Chennai",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Hanging electrical cable at 5th cross",
+      "description": "Live electric wire is dangerously hanging down near children playground.",
+      "district": "Chennai",
+      "category": "Electricity"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Live wire hazard duplicate"
+  },
+  {
+    "id": "pair_07",
+    "problem_a": {
+      "title": "Broken municipal tap wasting clean drinking water",
+      "description": "Public standpost tap broken at Gandhi Chowk, continuous clean water running down the street for 3 days.",
+      "district": "Jaipur",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Gandhi chowk public tap continuous water leakage",
+      "description": "Gandhi chowk pe municipal tap toot gaya hai, drinking water waste ho raha hai.",
+      "district": "Jaipur",
+      "category": "Water Supply"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Drinking water tap duplicate"
+  },
+  {
+    "id": "pair_08",
+    "problem_a": {
+      "title": "Damaged storm water drain cover on Main Road",
+      "description": "Iron grating is cracked and open on the storm drain, major pedestrian hazard.",
+      "district": "Pune",
+      "category": "Drainage"
+    },
+    "problem_b": {
+      "title": "Open drain grating on Main Road footpath",
+      "description": "Drain cover broke and left open, someone could fall inside in the dark.",
+      "district": "Pune",
+      "category": "Drainage"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Drain cover duplicate"
+  },
+  {
+    "id": "pair_09",
+    "problem_a": {
+      "title": "Illegal loud speakers blaring past midnight",
+      "description": "Commercial venue using high decibel speakers till 2 AM every night violating noise norms.",
+      "district": "Mumbai Suburban",
+      "category": "Public Safety"
+    },
+    "problem_b": {
+      "title": "Severe noise pollution after 11 PM near hospital",
+      "description": "Loud speaker playing high volume songs late night near hospital zone.",
+      "district": "Mumbai Suburban",
+      "category": "Public Safety"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Late night loudspeaker duplicate"
+  },
+  {
+    "id": "pair_10",
+    "problem_a": {
+      "title": "Encroached pedestrian walkway by shop extensions",
+      "description": "Shops on Station Road have built permanent tin shades and displays blocking pedestrian sidewalk.",
+      "district": "Indore",
+      "category": "Roads & Transport"
+    },
+    "problem_b": {
+      "title": "Station road footpath completely blocked by shopkeepers",
+      "description": "Footpath encroach kar liya hai dukandaro ne station road pe, pedestrians road pe chalte hain.",
+      "district": "Indore",
+      "category": "Roads & Transport"
+    },
+    "ground_truth": "duplicate",
+    "notes": "Footpath encroachment duplicate"
+  },
+  {
+    "id": "pair_11",
+    "problem_a": {
+      "title": "Severe water leakage on MG Road near Metro Station",
+      "description": "Main pipeline burst near pillar 42 causing waterlogging and low pressure for residents.",
+      "district": "Bengaluru Urban",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Severe water leakage on MG Road near Metro Station",
+      "description": "Main pipeline burst near pillar 42 causing waterlogging and low pressure for residents.",
+      "district": "Kolkata",
+      "category": "Water Supply"
+    },
+    "ground_truth": "different_location",
+    "notes": "Same text but DIFFERENT district (Bengaluru vs Kolkata) - MUST NOT BE MERGED"
+  },
+  {
+    "id": "pair_12",
+    "problem_a": {
+      "title": "Street lights not functioning in Sector 14 market",
+      "description": "All street light poles in block C market have been dark for over two weeks.",
+      "district": "Gurugram",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Street lights not functioning in Sector 14 market",
+      "description": "All street light poles in block C market have been dark for over two weeks.",
+      "district": "Noida",
+      "category": "Electricity"
+    },
+    "ground_truth": "different_location",
+    "notes": "Same text but Gurugram vs Noida - MUST NOT BE MERGED"
+  },
+  {
+    "id": "pair_13",
+    "problem_a": {
+      "title": "Open garbage dump near Govt Primary School",
+      "description": "Municipal garbage dumping right outside the school gate attracting stray animals.",
+      "district": "Patna",
+      "category": "Sanitation"
+    },
+    "problem_b": {
+      "title": "Open garbage dump near Govt Primary School",
+      "description": "Municipal garbage dumping right outside the school gate attracting stray animals.",
+      "district": "Ranchi",
+      "category": "Sanitation"
+    },
+    "ground_truth": "different_location",
+    "notes": "Same text but Patna vs Ranchi - MUST NOT BE MERGED"
+  },
+  {
+    "id": "pair_14",
+    "problem_a": {
+      "title": "Sewage overflow in residential lane 4",
+      "description": "Drainage blocked completely, sewage water backing up into houses.",
+      "district": "Lucknow",
+      "category": "Drainage"
+    },
+    "problem_b": {
+      "title": "Sewage overflow in residential lane 4",
+      "description": "Drainage blocked completely, sewage water backing up into houses.",
+      "district": "Kanpur Nagar",
+      "category": "Drainage"
+    },
+    "ground_truth": "different_location",
+    "notes": "Same text but Lucknow vs Kanpur Nagar - MUST NOT BE MERGED"
+  },
+  {
+    "id": "pair_15",
+    "problem_a": {
+      "title": "Broken municipal tap wasting clean drinking water",
+      "description": "Public standpost tap broken at Gandhi Chowk, continuous clean water running down the street.",
+      "district": "Jaipur",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Broken municipal tap wasting clean drinking water",
+      "description": "Public standpost tap broken at Gandhi Chowk, continuous clean water running down the street.",
+      "district": "Jodhpur",
+      "category": "Water Supply"
+    },
+    "ground_truth": "different_location",
+    "notes": "Same text but Jaipur vs Jodhpur - MUST NOT BE MERGED"
+  },
+  {
+    "id": "pair_16",
+    "problem_a": {
+      "title": "Water supply contaminated with yellowish foul-smelling mud",
+      "description": "Tap water supplied this morning is muddy and smells like sewage in Block A.",
+      "district": "Bhopal",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "No water supply for last 3 days in Block A",
+      "description": "Taps are completely dry in Block A since Monday morning, tanker requested.",
+      "district": "Bhopal",
+      "category": "Water Supply"
+    },
+    "ground_truth": "borderline",
+    "notes": "Same block and category, but one is contaminated water, other is total dry outage - related but distinct"
+  },
+  {
+    "id": "pair_17",
+    "problem_a": {
+      "title": "Traffic signal malfunctioning at 4th avenue intersection",
+      "description": "Red light stays green for only 2 seconds causing chaos and near collisions.",
+      "district": "Hyderabad",
+      "category": "Roads & Transport"
+    },
+    "problem_b": {
+      "title": "Potholes right in the middle of 4th avenue intersection",
+      "description": "Two deep potholes in intersection slowing down traffic turns.",
+      "district": "Hyderabad",
+      "category": "Roads & Transport"
+    },
+    "ground_truth": "borderline",
+    "notes": "Same location, but signal timing vs physical road potholes - related but not duplicate"
+  },
+  {
+    "id": "pair_18",
+    "problem_a": {
+      "title": "Stray dogs menace in public park sector 5",
+      "description": "Pack of aggressive dogs chasing morning walkers and children playing in sector 5 park.",
+      "district": "Chandigarh",
+      "category": "Public Safety"
+    },
+    "problem_b": {
+      "title": "Broken swings and playground equipment in sector 5 park",
+      "description": "Children swing chains are broken and slide has sharp rusty edges in sector 5 park.",
+      "district": "Chandigarh",
+      "category": "Public Infrastructure"
+    },
+    "ground_truth": "borderline",
+    "notes": "Same park, different problems (stray animals vs broken equipment)"
+  },
+  {
+    "id": "pair_19",
+    "problem_a": {
+      "title": "Uncollected garbage bins overflowing for 4 days",
+      "description": "Green community bins on Ring Road haven't been cleared by municipal truck.",
+      "district": "Ahmedabad",
+      "category": "Sanitation"
+    },
+    "problem_b": {
+      "title": "Dead animal lying uncollected on Ring Road median",
+      "description": "Carcass of a stray dog on the central verge spreading foul smell.",
+      "district": "Ahmedabad",
+      "category": "Sanitation"
+    },
+    "ground_truth": "borderline",
+    "notes": "Both sanitation on Ring Road, but bin collection vs carcass clearance"
+  },
+  {
+    "id": "pair_20",
+    "problem_a": {
+      "title": "Transformer sparking with loud noise in residential area",
+      "description": "Overloaded electric transformer sparking fire sparks during evening peak hours.",
+      "district": "Varanasi",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Frequent voltage fluctuation damaging home appliances",
+      "description": "Voltage swinging between 140V and 290V causing refrigerator and AC burnouts.",
+      "district": "Varanasi",
+      "category": "Electricity"
+    },
+    "ground_truth": "borderline",
+    "notes": "Same electrical grid issue manifestation, borderline related"
+  },
+  {
+    "id": "pair_21",
+    "problem_a": {
+      "title": "Severe water leakage on MG Road near Metro Station",
+      "description": "Main pipeline burst near pillar 42 causing waterlogging and low pressure for residents.",
+      "district": "Bengaluru Urban",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Stray cattle blocking highway junction",
+      "description": "Bulls and cows sitting on highway bypass causing dangerous night driving conditions.",
+      "district": "Gwalior",
+      "category": "Public Safety"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Completely unrelated topics and different cities"
+  },
+  {
+    "id": "pair_22",
+    "problem_a": {
+      "title": "Street lights not functioning in Sector 14 market",
+      "description": "All 12 street light poles in block C market have been dark for over two weeks.",
+      "district": "Gurugram",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Hospital lacks basic pediatric medicines and nebulizer",
+      "description": "Civil hospital emergency ward turned away infants due to missing emergency drugs.",
+      "district": "Rohtak",
+      "category": "Healthcare"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Streetlight vs healthcare medicine"
+  },
+  {
+    "id": "pair_23",
+    "problem_a": {
+      "title": "Open garbage dump near Govt Primary School",
+      "description": "Illegal municipal garbage dumping right outside the school gate.",
+      "district": "Patna",
+      "category": "Sanitation"
+    },
+    "problem_b": {
+      "title": "New flyover construction delayed by 18 months",
+      "description": "Bridge pillars abandoned with exposed rebar obstructing riverfront avenue.",
+      "district": "Kochi",
+      "category": "Infrastructure"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Garbage in Patna vs flyover delay in Kochi"
+  },
+  {
+    "id": "pair_24",
+    "problem_a": {
+      "title": "Sewage overflow in residential lane 4",
+      "description": "Drainage blocked completely, sewage water backing up into ground floor houses.",
+      "district": "Lucknow",
+      "category": "Drainage"
+    },
+    "problem_b": {
+      "title": "Public library roof leaking during monsoon showers",
+      "description": "Historic reference books damaged by ceiling seepage in central library reading hall.",
+      "district": "Thiruvananthapuram",
+      "category": "Education"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Sewage in Lucknow vs library leak in Kerala"
+  },
+  {
+    "id": "pair_25",
+    "problem_a": {
+      "title": "Broken municipal tap wasting clean drinking water",
+      "description": "Public standpost tap broken at Gandhi Chowk, continuous clean water running down the street.",
+      "district": "Jaipur",
+      "category": "Water Supply"
+    },
+    "problem_b": {
+      "title": "Speed breakers not marked with reflective paint",
+      "description": "Unmarked high asphalt humps on bypass road causing accidents at night.",
+      "district": "Surat",
+      "category": "Roads & Transport"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Water tap vs speed breaker"
+  },
+  {
+    "id": "pair_26",
+    "problem_a": {
+      "title": "Dangerous dangling high voltage wire on 5th Cross Road",
+      "description": "Loose live electric wire hanging barely 6 feet from the ground.",
+      "district": "Chennai",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Illegal sand mining along river banks at night",
+      "description": "Dumpers transporting illegal riverbed sand disturbing ecosystem.",
+      "district": "Nagpur",
+      "category": "Environment"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Electric wire vs river sand mining"
+  },
+  {
+    "id": "pair_27",
+    "problem_a": {
+      "title": "Encroached pedestrian walkway by shop extensions",
+      "description": "Shops on Station Road have built permanent tin shades blocking sidewalk.",
+      "district": "Indore",
+      "category": "Roads & Transport"
+    },
+    "problem_b": {
+      "title": "Lack of dustbins and bio-toilets along trekking route",
+      "description": "Plastic bottles and food wrappers discarded along tourist pilgrimage trail.",
+      "district": "Dehradun",
+      "category": "Sanitation"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Shop encroachment vs trekking trail garbage"
+  },
+  {
+    "id": "pair_28",
+    "problem_a": {
+      "title": "Potholes across outer ring road causing heavy traffic",
+      "description": "Multiple craters on outer ring road stretch between junction 2 and 3.",
+      "district": "Delhi",
+      "category": "Roads & Transport"
+    },
+    "problem_b": {
+      "title": "Street dogs barking through night in block B",
+      "description": "Disturbing sleep for senior citizens in block B lanes.",
+      "district": "Delhi",
+      "category": "Public Safety"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Same city, completely different issues (potholes vs dogs barking)"
+  },
+  {
+    "id": "pair_29",
+    "problem_a": {
+      "title": "Damaged storm water drain cover on Main Road",
+      "description": "Iron grating cracked and open on the storm drain, major pedestrian hazard.",
+      "district": "Pune",
+      "category": "Drainage"
+    },
+    "problem_b": {
+      "title": "School bus overcharging monthly transport fee",
+      "description": "Private operator increased fees arbitrarily without parents committee approval.",
+      "district": "Pune",
+      "category": "Education"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Same city, drain cover vs school bus fee"
+  },
+  {
+    "id": "pair_30",
+    "problem_a": {
+      "title": "Transformer sparking with loud noise in residential area",
+      "description": "Overloaded electric transformer sparking fire sparks during evening.",
+      "district": "Varanasi",
+      "category": "Electricity"
+    },
+    "problem_b": {
+      "title": "Boat operators overcharging pilgrims at Dashashwamedh Ghat",
+      "description": "Boatmen demanding excessive ticket rates without published rate board.",
+      "district": "Varanasi",
+      "category": "Tourism"
+    },
+    "ground_truth": "unrelated",
+    "notes": "Same city, transformer fire vs boat rates"
+  }
+]
+

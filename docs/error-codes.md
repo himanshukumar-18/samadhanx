@@ -122,3 +122,34 @@ All SamadhanX APIs adhere to a standardized JSON error response schema:
 | `DUPLICATE_AISHE_CODE` | 409 | Institution with this AISHE code is already registered. |
 | `VERIFICATION_REQUEST_NOT_FOUND`| 404 | Institution verification request does not exist. |
 | `SYNC_IN_PROGRESS` | 409 | Background AISHE database sync is already active. |
+
+---
+
+## 9. AI Duplicate Detection & Deduplication Workflows
+
+| Code | HTTP Status | Description |
+|---|---|---|
+| `DUPLICATE_CHECK_INVALID_INPUT` | 422 | Submitted title or description failed input length validation constraints. |
+| `DUPLICATE_CHECK_RATE_LIMITED` | 429 | Pre-check rate limit exceeded (maximum 20 requests/minute). |
+| `EMBEDDING_FAILED` | 500 | Multilingual vector embedding generation failed. |
+| `DUPLICATE_ANALYSIS_TIMEOUT` | 504 | Duplicate search timed out (fail-open mode triggered). |
+| `DUPLICATE_LINK_NOT_FOUND` | 404 | Problem duplicate link does not exist. |
+| `INVALID_MERGE_TARGET` | 400 | Cannot merge a problem into itself or invalid target. |
+| `MERGE_CYCLE_DETECTED` | 400 | Merging would create a cyclical duplicate reference loop. |
+| `PROBLEM_ALREADY_MERGED` | 400 | The problem has already been merged into a canonical report. |
+| `DUPLICATE_ALREADY_REVIEWED` | 400 | Duplicate candidate link has already been reviewed or dismissed. |
+
+## 10. Shared AI assistance
+
+| Code | HTTP Status | Description |
+|---|---:|---|
+| `AI_DISABLED` | 503 | The requested AI feature is disabled by configuration. |
+| `AI_TIMEOUT` | 504 | The AI provider exceeded its timeout. |
+| `AI_FAILED` | 502 | The AI provider failed; the normal human workflow remains available. |
+| `AI_INVALID_OUTPUT` | 502 | The provider returned output that failed schema validation. |
+| `AI_RATE_LIMITED` | 429 | AI request rate limit reached. |
+| `AI_BUDGET_EXCEEDED` | 429 | AI daily budget reached. |
+| `SESSION_NOT_FOUND` | 403 | Assistant session is not owned by the caller or does not exist. |
+| `SESSION_EXPIRED` | 410 | Assistant session exceeded its TTL. |
+| `TURN_LIMIT_REACHED` | 400 | Assistant conversation reached its maximum turns. |
+| `OFF_TOPIC_REQUEST` | 422 | Assistant request is outside local-problem drafting scope. |

@@ -40,7 +40,16 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
   const initials = getInitials(name);
 
-  if (src && !imageError) {
+  const isValidSrc = Boolean(
+    src &&
+    typeof src === 'string' &&
+    src.trim() !== '' &&
+    src !== 'null' &&
+    src !== 'undefined' &&
+    src !== '[object Object]'
+  );
+
+  if (src && isValidSrc && !imageError) {
     return (
       <img
         src={src}

@@ -91,21 +91,32 @@ class ProjectService:
                 detail={"code": "PROBLEM_NOT_FOUND", "message": "The selected problem does not exist."},
             )
 
-        # Duplicate-pod guard: the same student cannot LEAD two active pods on
-        # the same problem.  We check by querying solution_projects directly.
+        if problem.status in (ProblemStatus.REJECTED, ProblemStatus.DUPLICATE):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "PROBLEM_NOT_ELIGIBLE",
+                    "message": f"Cannot create a solution pod for a problem with status '{problem.status}'.",
+                },
+            )
+
+        # Duplicate-pod guard: the same student cannot LEAD or participate in multiple active pods
+        # on the same problem.
         dup_result = await self.db.execute(
-            select(SolutionProject).where(
+            select(SolutionProject)
+            .outerjoin(ProjectMember, ProjectMember.project_id == SolutionProject.id)
+            .where(
                 SolutionProject.problem_id == data.problem_id,
-                SolutionProject.lead_student_id == lead_student.id,
+                (SolutionProject.lead_student_id == lead_student.id) | (ProjectMember.user_id == lead_student.id),
                 SolutionProject.status.not_in([ProjectStatus.COMPLETED, ProjectStatus.REJECTED]),
             )
         )
-        if dup_result.scalar_one_or_none():
+        if dup_result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "code": "DUPLICATE_POD",
-                    "message": "You are already leading an active solution pod for this problem.",
+                    "message": "You are already leading or participating in an active solution pod for this problem.",
                 },
             )
 

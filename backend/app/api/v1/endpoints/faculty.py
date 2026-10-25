@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,8 +11,9 @@ from app.core.deps import get_db, require_role
 from app.models.audit_log import AuditLog
 from app.models.enums import NotificationType, ProjectStatus, ReviewDecision, UserRole
 from app.models.profiles import FacultyProfile
-from app.models.project import SolutionProject
+from app.models.project import ProjectMember, SolutionProject
 from app.models.project_review import ProjectReview
+from app.models.project_update import ProjectUpdate
 from app.models.user import User
 from app.repositories.notification_repository import NotificationRepository
 from app.schemas.faculty import (
@@ -22,8 +24,48 @@ from app.schemas.faculty import (
 )
 from app.schemas.review import ReviewCreate, ReviewResponse
 from app.services.review_service import ReviewService
+from app.ai_engine.schemas.faculty_review import FacultyAIReviewResponse
+from app.ai_engine.services.faculty_review_service import FacultyAIReviewService
 
 router = APIRouter(prefix="/faculty", tags=["Faculty Mentorship"])
+
+
+
+@router.post("/projects/{project_id}/ai-review", response_model=FacultyAIReviewResponse)
+async def generate_project_ai_review(
+    project_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role([UserRole.FACULTY, UserRole.UNIVERSITY, UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Generate an evidence-based, AI-assisted review draft for a student solution pod."""
+    from app.core.config import settings
+    if not getattr(settings, "AI_FACULTY_ENABLED", True):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_DISABLED", "message": "Faculty AI assistance is disabled."},
+        )
+    service = FacultyAIReviewService(db)
+    review_output = await service.generate_review(project_id=project_id, current_user=current_user)
+    return FacultyAIReviewResponse(success=True, data=review_output)
+
+
+@router.post("/pods/{pod_id}/ai-review-assist", response_model=FacultyAIReviewResponse)
+async def ai_review_assist(
+    pod_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_role([UserRole.FACULTY, UserRole.UNIVERSITY, UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Backward-compatible endpoint for faculty pod AI review assist."""
+    from app.core.config import settings
+    if not getattr(settings, "AI_FACULTY_ENABLED", True):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_DISABLED", "message": "Faculty AI assistance is disabled."},
+        )
+    service = FacultyAIReviewService(db)
+    review_output = await service.generate_review(project_id=pod_id, current_user=current_user)
+    return FacultyAIReviewResponse(success=True, data=review_output)
+
 
 
 @router.get("/dashboard", response_model=FacultyDashboardResponse)

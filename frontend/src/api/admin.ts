@@ -44,7 +44,8 @@ export interface ModerationProblemItem {
   state: string;
   latitude?: number | null;
   longitude?: number | null;
-  status: 'submitted' | 'under_review' | 'verified' | 'rejected' | 'in_progress' | 'solution_submitted' | 'pilot' | 'solved';
+  status: 'submitted' | 'under_review' | 'verified' | 'rejected' | 'in_progress' | 'solution_submitted' | 'pilot' | 'solved' | 'duplicate';
+
   impact_level: 'low' | 'medium' | 'high' | 'critical';
   created_by_id: string;
   is_verified: boolean;
@@ -191,6 +192,80 @@ export const adminApi = {
     const res = await apiClient.get('/admin/analytics');
     return res.data;
   },
+
+  getProblemAIAnalysis: async (problemId: string): Promise<{
+    success: boolean;
+    data: {
+      latest: AIAnalysisData | null;
+      history: AIAnalysisData[];
+    };
+    message?: string;
+  }> => {
+    const res = await apiClient.get(`/admin/problems/${problemId}/ai-analysis`);
+    return res.data;
+  },
+
+  /**
+   * On-demand synchronous AI analysis generation.
+   * Returns cached result immediately if within cooldown, otherwise runs full pipeline inline.
+   * Error codes: AI_ANALYSIS_TIMEOUT | AI_ANALYSIS_FAILED | AI_SERVICE_UNAVAILABLE
+   */
+  generateProblemAIAnalysis: async (
+    problemId: string,
+    params?: { force?: boolean }
+  ): Promise<{ success: boolean; data: AIAnalysisData; message?: string }> => {
+    const res = await apiClient.post(`/admin/problems/${problemId}/ai-analysis`, params || {});
+    return res.data;
+  },
+
+  reanalyzeProblemAI: async (
+    problemId: string,
+    params?: { force?: boolean; reason?: string }
+  ): Promise<{ success: boolean; data: AIAnalysisData; message?: string }> => {
+    const res = await apiClient.post(`/admin/problems/${problemId}/reanalyze-ai`, params || {});
+    return res.data;
+  },
 };
+
+
+export interface AIAnalysisData {
+  id: string;
+  problem_id: string;
+  analysis_version: number;
+  status: 'not_started' | 'queued' | 'running' | 'completed' | 'failed' | 'retrying' | 'timeout';
+  provider: string;
+  model_name: string;
+  prompt_version: string;
+  trigger?: string | null;
+  started_at?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  summary?: string | null;
+  keywords?: string[];
+  spam_probability?: number | null;
+  spam_reasons?: string[];
+  quality_score?: number | null;
+  confidence?: number | null;
+  risk_flags?: Array<{
+    type: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    reason: string;
+  }>;
+  duplicate_signal?: {
+    potential_duplicate: boolean;
+    similar_problem_ids: string[];
+    similarity_score: number;
+    rationale?: string | null;
+  } | null;
+  recommendation?: 'normal_review' | 'spam_review' | 'high_risk_escalation' | 'human_review_required' | null;
+  reason?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  duration_ms?: number | null;
+  started_at_ts?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+}
+
 
 

@@ -1,10 +1,14 @@
 from app.models.account_settings import AccountSettings
 from app.models.audit_log import AuditLog
+from app.models.ai import AIDecisionLog, AIFeedback
+from app.models.ai_session import AIAssistantSession
 from app.models.base import Base, BaseModel
 from app.models.chat import ChatMessage
 from app.models.enums import InvitationStatus, OrgType, OTPPurpose, RequestStatus, UserRole
 from app.models.funded_project_comment import FundedProjectComment
 from app.models.impact_report import ImpactReport
+from app.models.admin_impact_report import AdminAIImpactReport
+
 from app.models.industry_support import IndustrySupport
 from app.models.institution_master import InstitutionMaster, normalize_institution_name
 from app.models.institution_request import InstitutionVerificationRequest
@@ -14,7 +18,11 @@ from app.models.notification import Notification
 from app.models.otp import OTPVerification
 from app.models.patent import PatentIP
 from app.models.problem import Problem, ProblemComment, ProblemEndorsement
+from app.models.problem_ai_analysis import ProblemAIAnalysis
+from app.models.problem_duplicate_link import ProblemDuplicateLink
 from app.models.profiles import (
+
+
     CitizenProfile,
     FacultyProfile,
     IndustryProfile,
@@ -53,9 +61,15 @@ __all__ = [
     "RestrictedAccountRequest",
     "OTPVerification",
     "AuditLog",
+    "AIDecisionLog",
+    "AIFeedback",
+    "AIAssistantSession",
     "Problem",
+    "ProblemAIAnalysis",
     "ProblemComment",
     "ProblemEndorsement",
+    "ProblemDuplicateLink",
+
     "UserFollow",
     "ProblemShare",
     "ProblemSave",
@@ -68,7 +82,9 @@ __all__ = [
     "IndustrySupport",
     "FundedProjectComment",
     "ImpactReport",
+    "AdminAIImpactReport",
     "PatentIP",
+
     "ChatMessage",
     "AccountSettings",
     "UserProfileDetail",

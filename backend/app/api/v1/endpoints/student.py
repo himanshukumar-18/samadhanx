@@ -2,16 +2,17 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_active_user, get_db, require_role
 from app.models.audit_log import AuditLog
-from app.models.enums import NotificationType, ProjectStatus, RequestStatus, UserRole
+from app.models.enums import NotificationType, ProblemStatus, ProjectStatus, RequestStatus, UserRole
 from app.models.impact_report import ImpactReport
 from app.models.industry_support import IndustrySupport
 from app.models.notification import Notification
+from app.models.problem import Problem
 from app.models.profiles import StudentProfile
 from app.models.project import ProjectMember, SolutionProject
 from app.models.user import User
@@ -26,8 +27,37 @@ from app.schemas.student import (
     StudentProfileUpdate,
 )
 from app.services.project_service import ProjectService
+from app.ai_engine.services.embedder import EmbedderService
+
+from app.schemas.recommendation import StudentRecommendationsResponse
+from app.services.recommendation_service import (
+    StudentRecommendationService,
+    invalidate_student_recommendations_cache,
+)
 
 router = APIRouter(prefix="/student", tags=["Student Workspace"])
+
+
+@router.get("/recommendations", response_model=StudentRecommendationsResponse)
+@router.get("/recommended-problems", response_model=StudentRecommendationsResponse)
+async def get_student_recommendations(
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations to return"),
+    category: str | None = Query(None, max_length=100, description="Filter by problem category"),
+    district: str | None = Query(None, max_length=100, description="Filter by district"),
+    current_user: User = Depends(require_role([UserRole.STUDENT])),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return personalized civic problem recommendations for the current student
+    using PostgreSQL pgvector semantic matching, structured skill overlap, and business status filters.
+    """
+    service = StudentRecommendationService(db)
+    return await service.get_recommendations(
+        student_user=current_user,
+        limit=limit,
+        category=category,
+        district=district,
+    )
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -135,7 +165,9 @@ async def pick_project(
     set by a Faculty member through the adopt endpoint.
     """
     service = ProjectService(db)
-    return await service.pick_project(lead_student=current_user, data=data)
+    res = await service.pick_project(lead_student=current_user, data=data)
+    await invalidate_student_recommendations_cache(current_user.id)
+    return res
 
 
 # ---------------------------------------------------------------------------
@@ -736,5 +768,6 @@ async def update_student_profile(
     )
     db.add(audit)
     await db.commit()
+    await invalidate_student_recommendations_cache(current_user.id)
 
     return await get_student_profile(current_user=current_user, db=db)

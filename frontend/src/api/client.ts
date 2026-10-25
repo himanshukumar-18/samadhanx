@@ -96,11 +96,15 @@ apiClient.interceptors.response.use(
           }
           processQueue(null, newAccessToken);
           return apiClient(originalRequest);
+        } else {
+          throw new Error('Refresh response missing access_token');
         }
       } catch (refreshErr) {
         processQueue(refreshErr as AxiosError, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

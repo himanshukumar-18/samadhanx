@@ -16,7 +16,9 @@ import { Button } from '../../../shared/components/ui/Button';
 import { Card } from '../../../shared/components/ui/Card';
 import { Badge } from '../../../shared/components/ui/Badge';
 import { Skeleton } from '../../../shared/components/ui/Skeleton';
+import { AIModerationCard } from '../components/AIModerationCard';
 import { 
+
   ShieldCheck, 
   CheckCircle2, 
   XCircle, 
@@ -840,63 +842,78 @@ export const AdminDashboard: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 gap-4" role="list">
               {moderationProblems.map((prob) => (
-                <Card key={prob.id} className="p-5 border-border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-xs transition-shadow">
-                  <div className="space-y-2 min-w-0 max-w-3xl">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-primary/10 text-primary">
-                        {prob.category}
-                      </span>
-                      <Badge variant={prob.is_verified ? 'admin' : 'student'}>
-                        {prob.is_verified ? 'Official Verified' : 'Community Submission'}
-                      </Badge>
-                      <Badge variant={prob.status === 'solved' ? 'admin' : prob.status === 'in_progress' ? 'student' : 'faculty'}>
-                        {prob.status.replace('_', ' ')}
-                      </Badge>
-                      <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded ${
-                        prob.impact_level === 'critical' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {prob.impact_level} Impact
-                      </span>
+                <Card key={prob.id} className="p-5 border-border rounded-2xl flex flex-col justify-between gap-3 hover:shadow-xs transition-shadow">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-2 min-w-0 max-w-3xl">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-primary/10 text-primary">
+                          {prob.category}
+                        </span>
+                        <Badge variant={prob.is_verified ? 'admin' : 'student'}>
+                          {prob.is_verified ? 'Official Verified' : 'Community Submission'}
+                        </Badge>
+                        <Badge variant={prob.status === 'solved' ? 'admin' : prob.status === 'in_progress' ? 'student' : 'faculty'}>
+                          {prob.status.replace('_', ' ')}
+                        </Badge>
+                        {prob.status === 'duplicate' && (
+                          <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300">
+                            Merged Duplicate
+                          </span>
+                        )}
+                        <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded ${
+
+                          prob.impact_level === 'critical' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {prob.impact_level} Impact
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-black text-foreground">{prob.title}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{prob.description}</p>
+
+                      <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span>Location: <strong className="text-foreground">{prob.district}, {prob.state}</strong></span>
+                        <span>Author: <strong className="text-foreground">{prob.author?.full_name || prob.author?.email || 'Citizen'}</strong></span>
+                        <span>Teams Formed: <strong className="text-foreground">{prob.active_teams_count}</strong></span>
+                        <span>Endorsements: <strong className="text-foreground">{prob.likes_count}</strong></span>
+                        <span>Reported: {new Date(prob.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
 
-                    <h3 className="text-base font-black text-foreground">{prob.title}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{prob.description}</p>
-
-                    <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span>Location: <strong className="text-foreground">{prob.district}, {prob.state}</strong></span>
-                      <span>Author: <strong className="text-foreground">{prob.author?.full_name || prob.author?.email || 'Citizen'}</strong></span>
-                      <span>Teams Formed: <strong className="text-foreground">{prob.active_teams_count}</strong></span>
-                      <span>Endorsements: <strong className="text-foreground">{prob.likes_count}</strong></span>
-                      <span>Reported: {new Date(prob.created_at).toLocaleDateString()}</span>
+                    <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row items-center gap-2 self-start flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={processingId === prob.id}
+                        onClick={() => handleToggleVerifyProblem(prob)}
+                      >
+                        <Award className={`w-3.5 h-3.5 mr-1 ${prob.is_verified ? 'text-primary fill-primary/20' : ''}`} />
+                        {prob.is_verified ? 'Unverify' : 'Verify Challenge'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setStatusModal({
+                          open: true,
+                          problemId: prob.id,
+                          title: prob.title,
+                          currentStatus: prob.status,
+                          newStatus: prob.status,
+                        })}
+                      >
+                        Change Status
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row md:flex-col lg:flex-row items-center gap-2 self-end md:self-center flex-shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={processingId === prob.id}
-                      onClick={() => handleToggleVerifyProblem(prob)}
-                    >
-                      <Award className={`w-3.5 h-3.5 mr-1 ${prob.is_verified ? 'text-primary fill-primary/20' : ''}`} />
-                      {prob.is_verified ? 'Unverify' : 'Verify Challenge'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setStatusModal({
-                        open: true,
-                        problemId: prob.id,
-                        title: prob.title,
-                        currentStatus: prob.status,
-                        newStatus: prob.status,
-                      })}
-                    >
-                      Change Status
-                    </Button>
-                  </div>
+                  {/* AI Moderation Assistant Panel */}
+                  <AIModerationCard
+                    problemId={prob.id}
+                    currentCategory={prob.category}
+                  />
                 </Card>
               ))}
             </div>
+
           )}
         </div>
       )}

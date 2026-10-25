@@ -38,6 +38,7 @@ class ProblemStatus(StrEnum):
     SOLUTION_SUBMITTED = "solution_submitted"
     PILOT = "pilot"
     SOLVED = "solved"
+    DUPLICATE = "duplicate"
 
 class ImpactLevel(StrEnum):
     LOW = "low"
@@ -104,3 +105,35 @@ class PreferredLanguage(StrEnum):
     KN = "kn"
     ML = "ml"
     PA = "pa"
+
+
+class AIAnalysisStatus(StrEnum):
+    NOT_STARTED = "not_started"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RETRYING = "retrying"
+    TIMEOUT = "timeout"
+
+
+class AIModerationRecommendation(StrEnum):
+    NORMAL_REVIEW = "normal_review"
+    SPAM_REVIEW = "spam_review"
+    HIGH_RISK_ESCALATION = "high_risk_escalation"
+    HUMAN_REVIEW_REQUIRED = "human_review_required"
+
+
+class DuplicateVerdict(StrEnum):
+    STRONG_DUPLICATE = "strong_duplicate"
+    POSSIBLE_DUPLICATE = "possible_duplicate"
+    RELATED = "related"
+    UNIQUE = "unique"
+
+
+class DuplicateLinkStatus(StrEnum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    DISMISSED = "dismissed"
+
+

@@ -112,6 +112,10 @@ Public Self-Registration
 | `/api/v1/admin/problems/{id}/moderate` | `PATCH` | `admin` | Verifies or rejects reported civic problems |
 | `/api/v1/admin/audit-logs` | `GET` | `admin` | Complete tamper-evident system audit trail |
 | `/api/v1/admin/institutions/sync` | `POST` | `admin` | Triggers background Celery AISHE master sync |
+| `/api/v1/admin/problems/{id}/ai-analysis` | `GET` / `POST` | `admin` | Read or generate moderation suggestion |
+| `/api/v1/admin/problems/{id}/accept-ai-category` | `PATCH` | `admin` | Human applies a displayed category suggestion |
+| `/api/v1/admin/ai/impact-report` | `POST` | `admin` | Generate aggregate impact narrative |
+| `/api/v1/admin/ai/feedback` | `POST` | Authenticated | Record feedback on an AI suggestion |
 
 ---
 
@@ -135,3 +139,13 @@ Public Self-Registration
 | `/api/v1/notifications/read-all` | `PATCH` | **Authenticated** | Marks all notifications as read |
 | `/api/v1/system/pgvector-test` | `GET` | **Admin / Developer** | Tests pgvector cosine distance operations |
 | `/api/v1/system/celery-test` | `POST` | **Admin / Developer** | Tests asynchronous worker pipeline |
+
+### 2.9 AI assistance
+
+| Endpoint | Method | Auth Level / Role | Description |
+|---|---|---|---|
+| `/api/v1/student/recommended-problems` | `GET` | `student` | Recommendations for the authenticated student only |
+| `/api/v1/faculty/pods/{id}/ai-review-assist` | `POST` | `faculty` | Draft review assistance for the faculty's own queue |
+| `/api/v1/citizen/ai-assistant/sessions` | `POST` | `citizen` | Create scoped drafting session |
+| `/api/v1/citizen/ai-assistant/sessions/{id}` | `GET` / `DELETE` | `citizen` (owner) | Read or delete own assistant session |
+| `/api/v1/citizen/ai-assistant/sessions/{id}/messages` | `POST` | `citizen` (owner) | Add a capped drafting message |

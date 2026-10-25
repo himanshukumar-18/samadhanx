@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import system
 from app.api.v1.endpoints.admin import router as admin_router
+from app.api.v1.endpoints.ai_assistant import router as ai_assistant_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.chat import router as chat_router
 from app.api.v1.endpoints.citizen import router as citizen_router
@@ -32,6 +33,7 @@ api_router.include_router(auth_router)
 
 # Role & Domain Workspace Modules
 api_router.include_router(citizen_router)
+api_router.include_router(ai_assistant_router)
 api_router.include_router(problems_router)
 api_router.include_router(student_router)
 api_router.include_router(projects_router)

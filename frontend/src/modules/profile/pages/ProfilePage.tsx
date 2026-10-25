@@ -174,6 +174,8 @@ const CitizenProfileView: React.FC = () => {
       }
       toast.success(language === 'hi' ? 'प्रोफ़ाइल फ़ोटो अपडेट की गई!' : 'Profile photo updated!');
       queryClient.invalidateQueries({ queryKey: ['citizen', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
     } catch {
       toast.error('Failed to upload profile photo.');
     } finally {
@@ -705,6 +707,7 @@ const SharedProfileView: React.FC = () => {
       if (res.url) await updateProfileMutation.mutateAsync({ avatar_url: res.url });
       toast.success('Avatar updated!');
       await queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+      await queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
       refetchSelf();
     } catch {
       toast.error('Failed to upload avatar.');
@@ -929,6 +932,7 @@ const FacultyProfileView: React.FC = () => {
         await updateProfileMutation.mutateAsync({ avatar_url: res.url });
         toast.success('Profile photo updated!');
         await queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+        await queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
         refetchSelf();
       }
     } catch {
@@ -1367,6 +1371,7 @@ const StudentProfileView: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['student-profile'] });
       queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
     } catch (err: any) {
       const msg =
         err.response?.data?.detail?.message ||
@@ -1398,6 +1403,7 @@ const StudentProfileView: React.FC = () => {
         toast.success('Profile photo updated!');
         queryClient.invalidateQueries({ queryKey: ['student-profile'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+        queryClient.invalidateQueries({ queryKey: ['my-profile-detail'] });
         refetch();
       }
     } catch {
